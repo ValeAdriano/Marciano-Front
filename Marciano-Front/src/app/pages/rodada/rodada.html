@@ -1,5 +1,5 @@
 <main class="min-h-screen bg-gradient-to-b from-sky-50 to-indigo-50">
-  <!-- Header Gamificado -->
+  <!-- Header -->
   <section class="max-w-6xl mx-auto px-4 pt-10 pb-6">
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
       <div>
@@ -9,18 +9,15 @@
           </span>
         </h1>
         <p class="mt-1 text-slate-600">
-          Você não pode votar em si mesmo. <br> Anonimato: <span class="font-semibold text-slate-900">Ativado</span>
+          Você não pode votar em si mesmo. Anonimato: <span class="font-semibold text-slate-900">Ativado</span>
         </p>
       </div>
 
-      <!-- Status Rápido -->
       <div class="flex items-stretch gap-3">
         <div class="bg-white/95 backdrop-blur rounded-xl shadow-sm ring-1 ring-black/5 px-4 py-2 min-w-[140px]">
           <div class="text-[11px] text-slate-500">Código da Sala</div>
           <div class="text-lg font-bold tracking-[0.25em] text-slate-900 mt-0.5">ABC123</div>
         </div>
-
-        <!-- "Boss Timer" (visual) -->
         <div class="bg-white/95 backdrop-blur rounded-xl shadow-sm ring-1 ring-black/5 px-4 py-2 min-w-[160px]">
           <div class="text-[11px] text-slate-500">Tempo da Rodada</div>
           <div class="text-lg font-semibold text-slate-900 mt-0.5">03:12</div>
@@ -36,15 +33,15 @@
     <div class="grid lg:grid-cols-3 gap-8">
       <!-- Coluna 1-2 -->
       <div class="lg:col-span-2 space-y-8">
-        <!-- Arena de Alvos -->
+        <!-- Alvos -->
         <div class="bg-white/95 backdrop-blur rounded-2xl shadow ring-1 ring-black/5 p-6">
           <div class="flex items-center justify-between">
-            <h2 class="text-lg font-semibold text-slate-900">Arena de Alvos</h2>
+            <h2 class="text-lg font-semibold text-slate-900">Alvos</h2>
             <span class="text-sm text-slate-600">Você: <span class="font-medium text-slate-900">Não listado</span></span>
           </div>
 
           <ul class="mt-5 grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            <!-- Alvo Selecionado -->
+            <!-- Selecionado -->
             <li class="group relative">
               <div class="absolute inset-0 rounded-xl bg-gradient-to-br from-sky-300/40 via-indigo-300/30 to-fuchsia-300/40 blur-sm opacity-0 group-hover:opacity-100 transition"></div>
               <div class="relative flex items-center justify-between gap-3 rounded-xl border border-sky-300 bg-sky-50 px-3 py-2.5">
@@ -59,9 +56,9 @@
               </div>
             </li>
 
-            <!-- Concluídos com badge -->
-            <li class="group relative">
-              <div class="relative flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-white px-3 py-2.5">
+            <!-- Concluídos mostram a carta associada -->
+            <li class="relative">
+              <div class="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-white px-3 py-2.5">
                 <div class="flex items-center gap-3">
                   <span class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-sky-100 text-sky-700 font-semibold">MS</span>
                   <div>
@@ -69,12 +66,12 @@
                     <div class="text-xs text-slate-500">Envelope: Azul</div>
                   </div>
                 </div>
-                <span class="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">Voto: Empatia</span>
+                <span class="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">Empatia</span>
               </div>
             </li>
 
-            <li class="group relative">
-              <div class="relative flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-white px-3 py-2.5">
+            <li class="relative">
+              <div class="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-white px-3 py-2.5">
                 <div class="flex items-center gap-3">
                   <span class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-pink-100 text-pink-700 font-semibold">CR</span>
                   <div>
@@ -82,13 +79,13 @@
                     <div class="text-xs text-slate-500">Envelope: Rosa</div>
                   </div>
                 </div>
-                <span class="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">Voto: Criatividade</span>
+                <span class="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">Criatividade</span>
               </div>
             </li>
 
             <!-- Pendentes -->
-            <li class="group relative">
-              <div class="relative flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+            <li class="relative">
+              <div class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
                 <div class="flex items-center gap-3">
                   <span class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-teal-100 text-teal-700 font-semibold">LA</span>
                   <div>
@@ -100,8 +97,8 @@
               </div>
             </li>
 
-            <li class="group relative">
-              <div class="relative flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+            <li class="relative">
+              <div class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
                 <div class="flex items-center gap-3">
                   <span class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-orange-100 text-orange-700 font-semibold">AP</span>
                   <div>
@@ -113,8 +110,8 @@
               </div>
             </li>
 
-            <li class="group relative">
-              <div class="relative flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-white px-3 py-2.5">
+            <li class="relative">
+              <div class="flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-white px-3 py-2.5">
                 <div class="flex items-center gap-3">
                   <span class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-lime-100 text-lime-700 font-semibold">PI</span>
                   <div>
@@ -122,12 +119,12 @@
                     <div class="text-xs text-slate-500">Envelope: Lima</div>
                   </div>
                 </div>
-                <span class="text-xs font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">Voto: Comunicação</span>
+                <span class="text-xs font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">Comunicação</span>
               </div>
             </li>
 
-            <li class="group relative">
-              <div class="relative flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+            <li class="relative">
+              <div class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
                 <div class="flex items-center gap-3">
                   <span class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 text-violet-700 font-semibold">BC</span>
                   <div>
@@ -139,8 +136,8 @@
               </div>
             </li>
 
-            <li class="group relative">
-              <div class="relative flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+            <li class="relative">
+              <div class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
                 <div class="flex items-center gap-3">
                   <span class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-sky-200 text-sky-800 font-semibold">VC</span>
                   <div>
@@ -152,31 +149,15 @@
               </div>
             </li>
           </ul>
-
-          <!-- Meta da Rodada (decorativo) -->
-          <div class="mt-5 grid sm:grid-cols-3 gap-3 text-sm">
-            <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-              <div class="text-slate-600">Alvos</div>
-              <div class="font-semibold text-slate-900">7</div>
-            </div>
-            <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-              <div class="text-slate-600">Concluídos</div>
-              <div class="font-semibold text-slate-900">3</div>
-            </div>
-            <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-              <div class="text-slate-600">Combo de Diversidade</div>
-              <div class="font-semibold text-slate-900">x2</div>
-            </div>
-          </div>
         </div>
 
-        <!-- Deck de Cartas -->
+        <!-- Deck de Cartas: Associação carta -> alvo selecionado -->
         <div class="bg-white/95 backdrop-blur rounded-2xl shadow ring-1 ring-black/5 p-6">
           <div class="flex items-center justify-between">
             <h2 class="text-lg font-semibold text-slate-900">
-              Escolha para: <span class="text-sky-700">João Pereira</span>
+              Associe uma carta a: <span class="text-sky-700">João Pereira</span>
             </h2>
-            <span class="text-[11px] text-slate-500">Uma carta por destinatário</span>
+            <span class="text-[11px] text-slate-500">Uma carta por alvo</span>
           </div>
 
           <div class="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -191,16 +172,14 @@
               <div class="relative mt-2 text-[11px] font-medium text-emerald-700">Selecionado</div>
             </button>
 
-            <button type="button" disabled
-              class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-3 text-left shadow-sm hover:scale-[0.99] transition">
+            <button type="button" disabled class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-3 text-left shadow-sm">
               <div class="flex items-center gap-2">
                 <span class="h-3 w-3 rounded-full bg-rose-500"></span>
                 <span class="font-medium text-slate-900 text-sm">Coragem</span>
               </div>
             </button>
 
-            <button type="button" disabled
-              class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-left shadow-sm">
+            <button type="button" disabled class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-left shadow-sm">
               <div class="flex items-center gap-2">
                 <span class="h-3 w-3 rounded-full bg-amber-500"></span>
                 <span class="font-medium text-slate-900 text-sm">Criatividade</span>
@@ -275,24 +254,24 @@
           <div class="mt-5 flex items-center gap-3">
             <button type="button" disabled
               class="inline-flex items-center justify-center rounded-lg bg-slate-900 text-white px-4 py-2.5 font-medium shadow-sm disabled:opacity-40">
-              Confirmar voto deste alvo
+              Confirmar associação
             </button>
             <button type="button" disabled
               class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 px-4 py-2.5 font-medium disabled:opacity-40">
-              Limpar voto
+              Limpar associação
             </button>
           </div>
 
           <div class="mt-4 text-[11px] text-slate-500">
-            Regras: uma carta por destinatário; votos vão para o envelope do participante; anonimato definido pelo facilitador.
+            Regra: associe uma carta a cada alvo (exceto você). O voto vai para o envelope do participante; anonimato definido pelo facilitador.
           </div>
         </div>
       </div>
 
-      <!-- Coluna 3: Inventário / Conquistas -->
+      <!-- Coluna 3: Inventário -->
       <aside class="bg-white/95 backdrop-blur rounded-2xl shadow ring-1 ring-black/5 p-6 h-fit">
-        <h2 class="text-lg font-semibold text-slate-900">Inventário de Votos</h2>
-        <p class="text-sm text-slate-600 mt-1">Revise suas escolhas antes de enviar a rodada.</p>
+        <h2 class="text-lg font-semibold text-slate-900">Suas associações</h2>
+        <p class="text-sm text-slate-600 mt-1">Revise antes de enviar a rodada.</p>
 
         <ul class="mt-4 space-y-3">
           <li class="flex items-center justify-between">
@@ -346,41 +325,14 @@
           </li>
         </ul>
 
-        <!-- Bônus de diversidade (decorativo) -->
-        <div class="mt-5 border-t border-slate-100 pt-4 grid grid-cols-2 gap-3 text-sm">
-          <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-            <div class="text-slate-600">Qualidades únicas</div>
-            <div class="font-semibold text-slate-900">6 / 12</div>
-          </div>
-          <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-            <div class="text-slate-600">Sequência sem repetição</div>
-            <div class="font-semibold text-slate-900">x3</div>
-          </div>
-        </div>
-
-        <!-- Conquistas (decorativo) -->
-        <div class="mt-4">
-          <h3 class="text-sm font-semibold text-slate-900">Conquistas desta rodada</h3>
-          <div class="mt-2 flex flex-wrap gap-2">
-            <span class="inline-flex items-center rounded-lg bg-sky-100 px-2.5 py-1 text-xs font-medium text-sky-700">Primeiro Voto</span>
-            <span class="inline-flex items-center rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">Sem Auto-Voto</span>
-            <span class="inline-flex items-center rounded-lg bg-violet-100 px-2.5 py-1 text-xs font-medium text-violet-700">Variedade+</span>
-          </div>
-        </div>
-
-        <!-- CTA da Rodada -->
         <div class="mt-6">
-          <!-- Substitua por routerLink="/resultados" quando quiser navegar -->
-            <a
-            routerLink="/resultados"
-            class="w-full inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 text-white px-4 py-3 font-semibold shadow-sm hover:from-sky-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
-            >
+          <button type="button" disabled
+            class="w-full inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 text-white px-4 py-3 font-semibold shadow-sm disabled:opacity-40">
             Enviar votos da rodada
-            </a>
-                      <!-- Rota para o lobby -->
-
-
-          <div class="mt-2 text-[11px] text-slate-500">Após o envio, os envelopes são revelados e os gráficos gerados.</div>
+          </button>
+          <div class="mt-2 text-[11px] text-slate-500">
+            Após o envio, os envelopes são revelados e os gráficos gerados.
+          </div>
         </div>
       </aside>
     </div>
