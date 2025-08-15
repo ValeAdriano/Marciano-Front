@@ -48,8 +48,7 @@ Projeto front-end em **Angular 20** com foco na criação de uma interface gamif
 1. Instale dependências:
    ```bash
    npm install
-   # ou: pnpm install / yarn install
-```
+   ```
 
 2. Ambiente de desenvolvimento:
 
