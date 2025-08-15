@@ -1,0 +1,238 @@
+<main class="min-h-screen bg-gradient-to-b from-sky-50 to-indigo-50">
+  <!-- Header -->
+  <section class="max-w-6xl mx-auto px-4 pt-10 pb-6">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">
+          <span class="bg-clip-text text-transparent bg-gradient-to-r from-sky-600 via-indigo-600 to-fuchsia-600">
+            Resultados — Rodada 1
+          </span>
+        </h1>
+        <p class="mt-1 text-slate-600">Envelopes abertos! Abaixo, a distribuição das **cores** das cartas.</p>
+      </div>
+
+      <div class="flex items-stretch gap-3">
+        <div class="bg-white/95 backdrop-blur rounded-xl shadow-sm ring-1 ring-black/5 px-4 py-2 min-w-[140px]">
+          <div class="text-[11px] text-slate-500">Código da Sala</div>
+          <div class="text-lg font-bold tracking-[0.25em] text-slate-900 mt-0.5">ABC123</div>
+        </div>
+        <div class="bg-white/95 backdrop-blur rounded-xl shadow-sm ring-1 ring-black/5 px-4 py-2 min-w-[160px]">
+          <div class="text-[11px] text-slate-500">Participantes</div>
+          <div class="text-lg font-semibold text-slate-900 mt-0.5">8</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Conteúdo -->
+  <section class="max-w-6xl mx-auto px-4 pb-16">
+    <div class="grid lg:grid-cols-3 gap-8">
+      <!-- Coluna Principal -->
+      <div class="lg:col-span-2 space-y-8">
+
+        <!-- Legenda de Cores -->
+        <div class="bg-white/95 backdrop-blur rounded-2xl shadow ring-1 ring-black/5 p-6">
+          <h2 class="text-lg font-semibold text-slate-900">Legenda das Cartas por Cor</h2>
+          <div class="mt-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
+            <div class="inline-flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-emerald-500"></span> Empatia</div>
+            <div class="inline-flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-amber-500"></span> Criatividade</div>
+            <div class="inline-flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-blue-500"></span> Comunicação</div>
+            <div class="inline-flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-indigo-500"></span> Liderança</div>
+            <div class="inline-flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-slate-500"></span> Organização</div>
+            <div class="inline-flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-cyan-500"></span> Colaboração</div>
+            <div class="inline-flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-rose-500"></span> Coragem</div>
+            <div class="inline-flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-teal-500"></span> Resiliência</div>
+            <div class="inline-flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-sky-500"></span> Foco</div>
+            <div class="inline-flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-lime-500"></span> Iniciativa</div>
+            <div class="inline-flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-orange-500"></span> Empreendedorismo</div>
+            <div class="inline-flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-violet-500"></span> Paciência</div>
+          </div>
+        </div>
+
+        <!-- Gráfico de Barras por Cor (apenas visual) -->
+        <div class="bg-white/95 backdrop-blur rounded-2xl shadow ring-1 ring-black/5 p-6">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-slate-900">Distribuição por Cores</h2>
+            <span class="text-xs text-slate-500">Proporção de votos (mock)</span>
+          </div>
+
+          <div class="mt-5 space-y-3">
+            <!-- cada linha é uma “barra” proporcional; ajuste as larguras conforme seus dados reais -->
+            <div>
+              <div class="flex justify-between text-sm">
+                <span class="font-medium text-slate-800">Empatia</span>
+                <span class="text-slate-500">—</span>
+              </div>
+              <div class="mt-1 h-3 w-full rounded-full bg-slate-100 overflow-hidden">
+                <div class="h-full w-[88%] rounded-full bg-emerald-500/90"></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-sm">
+                <span class="font-medium text-slate-800">Criatividade</span>
+                <span class="text-slate-500">—</span>
+              </div>
+              <div class="mt-1 h-3 w-full rounded-full bg-slate-100 overflow-hidden">
+                <div class="h-full w-[66%] rounded-full bg-amber-500/90"></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-sm">
+                <span class="font-medium text-slate-800">Comunicação</span>
+                <span class="text-slate-500">—</span>
+              </div>
+              <div class="mt-1 h-3 w-full rounded-full bg-slate-100 overflow-hidden">
+                <div class="h-full w-[61%] rounded-full bg-blue-500/90"></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-sm">
+                <span class="font-medium text-slate-800">Liderança</span>
+                <span class="text-slate-500">—</span>
+              </div>
+              <div class="mt-1 h-3 w-full rounded-full bg-slate-100 overflow-hidden">
+                <div class="h-full w-[55%] rounded-full bg-indigo-500/90"></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-sm">
+                <span class="font-medium text-slate-800">Organização</span>
+                <span class="text-slate-500">—</span>
+              </div>
+              <div class="mt-1 h-3 w-full rounded-full bg-slate-100 overflow-hidden">
+                <div class="h-full w-[48%] rounded-full bg-slate-500/90"></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-sm">
+                <span class="font-medium text-slate-800">Colaboração</span>
+                <span class="text-slate-500">—</span>
+              </div>
+              <div class="mt-1 h-3 w-full rounded-full bg-slate-100 overflow-hidden">
+                <div class="h-full w-[40%] rounded-full bg-cyan-500/90"></div>
+              </div>
+            </div>
+
+            <!-- extras (exibidos como mosaico menor abaixo) -->
+          </div>
+
+          <!-- Mosaico compacto das demais cores -->
+          <div class="mt-6">
+            <div class="text-xs text-slate-500 mb-2">Outras cores</div>
+            <div class="grid grid-cols-6 sm:grid-cols-8 gap-2">
+              <span class="h-2.5 w-full rounded-full bg-rose-500/90" title="Coragem"></span>
+              <span class="h-2.5 w-full rounded-full bg-teal-500/90" title="Resiliência"></span>
+              <span class="h-2.5 w-full rounded-full bg-sky-500/90" title="Foco"></span>
+              <span class="h-2.5 w-full rounded-full bg-lime-500/90" title="Iniciativa"></span>
+              <span class="h-2.5 w-full rounded-full bg-orange-500/90" title="Empreendedorismo"></span>
+              <span class="h-2.5 w-full rounded-full bg-violet-500/90" title="Paciência"></span>
+              <span class="h-2.5 w-full rounded-full bg-slate-400/90" title="Outra 1"></span>
+              <span class="h-2.5 w-full rounded-full bg-slate-300/90" title="Outra 2"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mapa de Cores por Participante (heatline simples) -->
+        <div class="bg-white/95 backdrop-blur rounded-2xl shadow ring-1 ring-black/5 p-6">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-slate-900">Mapa por Participante</h2>
+            <span class="text-xs text-slate-500">Cor = carta mais atribuída</span>
+          </div>
+
+          <ul class="mt-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+            <li class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
+              <span>Maria Silva</span>
+              <span class="inline-flex items-center gap-2"><i class="h-2.5 w-2.5 rounded-full bg-emerald-500"></i> Empatia</span>
+            </li>
+            <li class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
+              <span>João Pereira</span>
+              <span class="inline-flex items-center gap-2"><i class="h-2.5 w-2.5 rounded-full bg-amber-500"></i> Criatividade</span>
+            </li>
+            <li class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
+              <span>Camila Rocha</span>
+              <span class="inline-flex items-center gap-2"><i class="h-2.5 w-2.5 rounded-full bg-indigo-500"></i> Liderança</span>
+            </li>
+            <li class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
+              <span>Lucas Alves</span>
+              <span class="inline-flex items-center gap-2"><i class="h-2.5 w-2.5 rounded-full bg-slate-500"></i> Organização</span>
+            </li>
+            <li class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
+              <span>Ana Paula</span>
+              <span class="inline-flex items-center gap-2"><i class="h-2.5 w-2.5 rounded-full bg-cyan-500"></i> Colaboração</span>
+            </li>
+            <li class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
+              <span>Pedro Ivo</span>
+              <span class="inline-flex items-center gap-2"><i class="h-2.5 w-2.5 rounded-full bg-blue-500"></i> Comunicação</span>
+            </li>
+            <li class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
+              <span>Beatriz Costa</span>
+              <span class="inline-flex items-center gap-2"><i class="h-2.5 w-2.5 rounded-full bg-violet-500"></i> Paciência</span>
+            </li>
+            <li class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
+              <span>Você</span>
+              <span class="inline-flex items-center gap-2"><i class="h-2.5 w-2.5 rounded-full bg-emerald-500"></i> Empatia</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Coluna Lateral -->
+      <aside class="bg-white/95 backdrop-blur rounded-2xl shadow ring-1 ring-black/5 p-6 h-fit">
+        <h2 class="text-lg font-semibold text-slate-900">Seus Elogios</h2>
+        <p class="text-sm text-slate-600 mt-1">Qualidades (cores) que o grupo atribuiu a você.</p>
+
+        <!-- Card “Você” -->
+        <div class="mt-4 rounded-2xl border border-slate-200 bg-gradient-to-br from-sky-50 to-indigo-50 p-4">
+          <div class="flex items-center gap-3">
+            <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-sky-200 text-sky-800 font-bold">VC</span>
+            <div>
+              <div class="font-semibold text-slate-900">Você</div>
+              <div class="text-xs text-slate-600">Envelope Azul Claro</div>
+            </div>
+          </div>
+
+          <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+            <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 font-medium text-emerald-700">Empatia</div>
+            <div class="rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 font-medium text-indigo-700">Liderança</div>
+            <div class="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 font-medium text-blue-700">Comunicação</div>
+            <div class="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 font-medium text-slate-700">Organização</div>
+          </div>
+        </div>
+
+        <!-- Insights rápidos -->
+        <div class="mt-6">
+          <h3 class="text-sm font-semibold text-slate-900">Insights</h3>
+          <ul class="mt-2 space-y-1 text-sm text-slate-600 list-disc list-inside">
+            <li>Empatia foi a cor mais frequente no grupo.</li>
+            <li>Diversidade de cores acima da média (bom equilíbrio de qualidades).</li>
+            <li>Evite repetir a mesma cor para todos na próxima rodada.</li>
+          </ul>
+        </div>
+
+        <!-- Ações -->
+        <div class="mt-6 space-y-2">
+          <a
+            routerLink="/lobby"
+            role="button"
+            class="w-full inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 text-white px-4 py-3 font-semibold shadow-sm hover:from-sky-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+          >
+            Iniciar Nova Rodada
+          </a>
+          <button type="button" disabled title="Apenas visual"
+            class="w-full inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 px-4 py-2.5 font-medium disabled:opacity-40">
+            Exportar
+          </button>
+        </div>
+
+        <div class="mt-3 text-[11px] text-slate-500">
+          Dica: use as cores como “tags” de reconhecimento nos rituais do time.
+        </div>
+      </aside>
+    </div>
+  </section>
+</main>
