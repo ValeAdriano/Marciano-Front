@@ -1,4 +1,17 @@
-@import "tailwindcss";
+@use '@angular/material' as mat;
 
-html, body { height: 100%; }
-body { margin: 0; }
+// Tema claro Material 3 com paletas M3
+$my-theme: mat.define-theme((
+  color: (
+    theme-type: light,
+    primary: mat.$blue-palette,
+    tertiary: mat.$orange-palette,
+  ),
+  // typography: (use defaults)
+  // density: 0 // ajuste opcional de densidade
+));
+
+// Aplica o tema globalmente
+:root {
+  @include mat.all-component-themes($my-theme);
+}
