@@ -1,3 +1,4 @@
+<!-- rodada.html -->
 <main class="min-h-screen bg-white">
   <!-- Header -->
   <section class="max-w-6xl mx-auto px-3 sm:px-4 pt-6 sm:pt-10 pb-4 sm:pb-6">
@@ -47,8 +48,9 @@
 
           <ul class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4" role="list">
             <!-- Alvo 1 -->
-            <li>
-              <input id="alvo-joao" name="alvo" type="radio" class="peer sr-only" />
+            <li class="relative">
+              <input id="alvo-joao" name="alvo" type="radio" class="peer sr-only"
+                     value="joao" (change)="selecionarAlvo('João Pereira','joao')" />
               <label for="alvo-joao"
                 class="block cursor-pointer select-none rounded-xl border px-3 py-2.5 bg-white border-blue-200 flex items-center gap-3
                        peer-checked:ring-2 peer-checked:ring-blue-400 peer-checked:border-blue-400">
@@ -61,8 +63,9 @@
             </li>
 
             <!-- Alvo 2 -->
-            <li>
-              <input id="alvo-maria" name="alvo" type="radio" class="peer sr-only" />
+            <li class="relative">
+              <input id="alvo-maria" name="alvo" type="radio" class="peer sr-only"
+                     value="maria" (change)="selecionarAlvo('Maria Silva','maria')" />
               <label for="alvo-maria"
                 class="block cursor-pointer select-none rounded-xl border px-3 py-2.5 bg-white border-green-200 flex items-center gap-3
                        peer-checked:ring-2 peer-checked:ring-green-400 peer-checked:border-green-400">
@@ -75,8 +78,9 @@
             </li>
 
             <!-- Alvo 3 -->
-            <li>
-              <input id="alvo-camila" name="alvo" type="radio" class="peer sr-only" />
+            <li class="relative">
+              <input id="alvo-camila" name="alvo" type="radio" class="peer sr-only"
+                     value="camila" (change)="selecionarAlvo('Camila Rocha','camila')" />
               <label for="alvo-camila"
                 class="block cursor-pointer select-none rounded-xl border px-3 py-2.5 bg-white border-yellow-200 flex items-center gap-3
                        peer-checked:ring-2 peer-checked:ring-yellow-400 peer-checked:border-yellow-400">
@@ -89,8 +93,9 @@
             </li>
 
             <!-- Alvo 4 -->
-            <li>
-              <input id="alvo-lucas" name="alvo" type="radio" class="peer sr-only" />
+            <li class="relative">
+              <input id="alvo-lucas" name="alvo" type="radio" class="peer sr-only"
+                     value="lucas" (change)="selecionarAlvo('Lucas Alves','lucas')" />
               <label for="alvo-lucas"
                 class="block cursor-pointer select-none rounded-xl border px-3 py-2.5 bg-white border-blue-200 flex items-center gap-3
                        peer-checked:ring-2 peer-checked:ring-blue-400 peer-checked:border-blue-400">
@@ -103,16 +108,14 @@
             </li>
 
             <!-- Você (desabilitado) -->
-            <li class="sm:col-span-2">
-              <input id="alvo-voce" name="alvo" type="radio" class="peer sr-only" disabled />
-              <label for="alvo-voce"
-                class="block cursor-not-allowed select-none rounded-xl border px-3 py-2.5 bg-white border-gray-200 opacity-60 flex items-center gap-3">
+            <li class="sm:col-span-2 opacity-60">
+              <div class="block cursor-not-allowed select-none rounded-xl border px-3 py-2.5 bg-white border-gray-200 flex items-center gap-3">
                 <span class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-200 text-blue-800 font-semibold text-sm">VC</span>
                 <div>
                   <div class="font-medium text-gray-900">Você</div>
                   <div class="text-xs text-gray-500">Não é possível votar em si mesmo</div>
                 </div>
-              </label>
+              </div>
             </li>
           </ul>
         </div>
@@ -126,133 +129,171 @@
             <span class="text-xs text-gray-500">Uma carta por alvo</span>
           </div>
 
-          <!-- 12 cartas (lista MARCIANO) -->
+          <!-- Cartas (cada input+label dentro do próprio contêiner) -->
           <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-            <!-- LARANJA -->
-            <input id="carta-lar-1" name="carta" type="radio" class="peer sr-only" />
-            <label for="carta-lar-1"
-              class="w-full rounded-xl border border-orange-300 bg-orange-50 px-3 py-3 text-left shadow-sm cursor-pointer select-none
-                     peer-checked:ring-2 peer-checked:ring-orange-400 peer-checked:border-orange-400">
-              <div class="flex items-center gap-2">
-                <span class="h-3 w-3 rounded-full bg-orange-500"></span>
-                <span class="font-medium text-gray-900 text-sm">Tem pensamento estratégico e visão do todo</span>
-              </div>
-            </label>
 
-            <input id="carta-lar-2" name="carta" type="radio" class="peer sr-only" />
-            <label for="carta-lar-2"
-              class="w-full rounded-xl border border-orange-300 bg-orange-50 px-3 py-3 text-left shadow-sm cursor-pointer select-none
-                     peer-checked:ring-2 peer-checked:ring-orange-400 peer-checked:border-orange-400">
-              <div class="flex items-center gap-2">
-                <span class="h-3 w-3 rounded-full bg-orange-500"></span>
-                <span class="font-medium text-gray-900 text-sm">É bom em planejar e organizar</span>
-              </div>
-            </label>
+            <!-- LARANJA -->
+            <div class="relative">
+              <input id="carta-lar-1" name="carta" type="radio" class="peer sr-only"
+                     value="lar-1" (change)="selecionarCarta('Laranja','Tem pensamento estratégico e visão do todo','lar-1')" />
+              <label for="carta-lar-1"
+                     class="block w-full rounded-xl border border-orange-300 bg-orange-50 px-3 py-3 text-left shadow-sm cursor-pointer select-none
+                            peer-checked:ring-2 peer-checked:ring-orange-400 peer-checked:border-orange-400">
+                <div class="flex items-center gap-2">
+                  <span class="h-3 w-3 rounded-full bg-orange-500"></span>
+                  <span class="font-medium text-gray-900 text-sm">Tem pensamento estratégico e visão do todo</span>
+                </div>
+              </label>
+            </div>
+
+            <div class="relative">
+              <input id="carta-lar-2" name="carta" type="radio" class="peer sr-only"
+                     value="lar-2" (change)="selecionarCarta('Laranja','É bom em planejar e organizar','lar-2')" />
+              <label for="carta-lar-2"
+                     class="block w-full rounded-xl border border-orange-300 bg-orange-50 px-3 py-3 text-left shadow-sm cursor-pointer select-none
+                            peer-checked:ring-2 peer-checked:ring-orange-400 peer-checked:border-orange-400">
+                <div class="flex items-center gap-2">
+                  <span class="h-3 w-3 rounded-full bg-orange-500"></span>
+                  <span class="font-medium text-gray-900 text-sm">É bom em planejar e organizar</span>
+                </div>
+              </label>
+            </div>
 
             <!-- VERDE -->
-            <input id="carta-ver-1" name="carta" type="radio" class="peer sr-only" />
-            <label for="carta-ver-1"
-              class="w-full rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-3 text-left shadow-sm cursor-pointer select-none
-                     peer-checked:ring-2 peer-checked:ring-emerald-400 peer-checked:border-emerald-400">
-              <div class="flex items-center gap-2">
-                <span class="h-3 w-3 rounded-full bg-emerald-500"></span>
-                <span class="font-medium text-gray-900 text-sm">Preserva a harmonia no ambiente de trabalho</span>
-              </div>
-            </label>
+            <div class="relative">
+              <input id="carta-ver-1" name="carta" type="radio" class="peer sr-only"
+                     value="ver-1" (change)="selecionarCarta('Verde','Preserva a harmonia no ambiente de trabalho','ver-1')" />
+              <label for="carta-ver-1"
+                     class="block w-full rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-3 text-left shadow-sm cursor-pointer select-none
+                            peer-checked:ring-2 peer-checked:ring-emerald-400 peer-checked:border-emerald-400">
+                <div class="flex items-center gap-2">
+                  <span class="h-3 w-3 rounded-full bg-emerald-500"></span>
+                  <span class="font-medium text-gray-900 text-sm">Preserva a harmonia no ambiente de trabalho</span>
+                </div>
+              </label>
+            </div>
 
-            <input id="carta-ver-2" name="carta" type="radio" class="peer sr-only" />
-            <label for="carta-ver-2"
-              class="w-full rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-3 text-left shadow-sm cursor-pointer select-none
-                     peer-checked:ring-2 peer-checked:ring-emerald-400 peer-checked:border-emerald-400">
-              <div class="flex items-center gap-2">
-                <span class="h-3 w-3 rounded-full bg-emerald-500"></span>
-                <span class="font-medium text-gray-900 text-sm">Dá grande atenção ao bem estar da pessoa</span>
-              </div>
-            </label>
+            <div class="relative">
+              <input id="carta-ver-2" name="carta" type="radio" class="peer sr-only"
+                     value="ver-2" (change)="selecionarCarta('Verde','Dá grande atenção ao bem estar da pessoa','ver-2')" />
+              <label for="carta-ver-2"
+                     class="block w-full rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-3 text-left shadow-sm cursor-pointer select-none
+                            peer-checked:ring-2 peer-checked:ring-emerald-400 peer-checked:border-emerald-400">
+                <div class="flex items-center gap-2">
+                  <span class="h-3 w-3 rounded-full bg-emerald-500"></span>
+                  <span class="font-medium text-gray-900 text-sm">Dá grande atenção ao bem estar da pessoa</span>
+                </div>
+              </label>
+            </div>
 
             <!-- AMARELO -->
-            <input id="carta-ama-1" name="carta" type="radio" class="peer sr-only" />
-            <label for="carta-ama-1"
-              class="w-full rounded-xl border border-amber-300 bg-amber-50 px-3 py-3 text-left shadow-sm cursor-pointer select-none
-                     peer-checked:ring-2 peer-checked:ring-amber-400 peer-checked:border-amber-400">
-              <div class="flex items-center gap-2">
-                <span class="h-3 w-3 rounded-full bg-amber-500"></span>
-                <span class="font-medium text-gray-900 text-sm">É ágil, flexível e aberto a mudanças</span>
-              </div>
-            </label>
+            <div class="relative">
+              <input id="carta-ama-1" name="carta" type="radio" class="peer sr-only"
+                     value="ama-1" (change)="selecionarCarta('Amarelo','É ágil, flexível e aberto a mudanças','ama-1')" />
+              <label for="carta-ama-1"
+                     class="block w-full rounded-xl border border-amber-300 bg-amber-50 px-3 py-3 text-left shadow-sm cursor-pointer select-none
+                            peer-checked:ring-2 peer-checked:ring-amber-400 peer-checked:border-amber-400">
+                <div class="flex items-center gap-2">
+                  <span class="h-3 w-3 rounded-full bg-amber-500"></span>
+                  <span class="font-medium text-gray-900 text-sm">É ágil, flexível e aberto a mudanças</span>
+                </div>
+              </label>
+            </div>
 
-            <input id="carta-ama-2" name="carta" type="radio" class="peer sr-only" />
-            <label for="carta-ama-2"
-              class="w-full rounded-xl border border-amber-300 bg-amber-50 px-3 py-3 text-left shadow-sm cursor-pointer select-none
-                     peer-checked:ring-2 peer-checked:ring-amber-400 peer-checked:border-amber-400">
-              <div class="flex items-center gap-2">
-                <span class="h-3 w-3 rounded-full bg-amber-500"></span>
-                <span class="font-medium text-gray-900 text-sm">Traz as novas ideias e ajuda a empresa a inovar</span>
-              </div>
-            </label>
+            <div class="relative">
+              <input id="carta-ama-2" name="carta" type="radio" class="peer sr-only"
+                     value="ama-2" (change)="selecionarCarta('Amarelo','Traz as novas ideias e ajuda a empresa a inovar','ama-2')" />
+              <label for="carta-ama-2"
+                     class="block w-full rounded-xl border border-amber-300 bg-amber-50 px-3 py-3 text-left shadow-sm cursor-pointer select-none
+                            peer-checked:ring-2 peer-checked:ring-amber-400 peer-checked:border-amber-400">
+                <div class="flex items-center gap-2">
+                  <span class="h-3 w-3 rounded-full bg-amber-500"></span>
+                  <span class="font-medium text-gray-900 text-sm">Traz as novas ideias e ajuda a empresa a inovar</span>
+                </div>
+              </label>
+            </div>
 
             <!-- AZUL -->
-            <input id="carta-az-1" name="carta" type="radio" class="peer sr-only" />
-            <label for="carta-az-1"
-              class="w-full rounded-xl border border-blue-300 bg-blue-50 px-3 py-3 text-left shadow-sm cursor-pointer select-none
-                     peer-checked:ring-2 peer-checked:ring-blue-400 peer-checked:border-blue-400">
-              <div class="flex items-center gap-2">
-                <span class="h-3 w-3 rounded-full bg-blue-500"></span>
-                <span class="font-medium text-gray-900 text-sm">Ajuda a empresa e as equipes a manter o foco</span>
-              </div>
-            </label>
+            <div class="relative">
+              <input id="carta-az-1" name="carta" type="radio" class="peer sr-only"
+                     value="az-1" (change)="selecionarCarta('Azul','Ajuda a empresa e as equipes a manter o foco','az-1')" />
+              <label for="carta-az-1"
+                     class="block w-full rounded-xl border border-blue-300 bg-blue-50 px-3 py-3 text-left shadow-sm cursor-pointer select-none
+                            peer-checked:ring-2 peer-checked:ring-blue-400 peer-checked:border-blue-400">
+                <div class="flex items-center gap-2">
+                  <span class="h-3 w-3 rounded-full bg-blue-500"></span>
+                  <span class="font-medium text-gray-900 text-sm">Ajuda a empresa e as equipes a manter o foco</span>
+                </div>
+              </label>
+            </div>
 
-            <input id="carta-az-2" name="carta" type="radio" class="peer sr-only" />
-            <label for="carta-az-2"
-              class="w-full rounded-xl border border-blue-300 bg-blue-50 px-3 py-3 text-left shadow-sm cursor-pointer select-none
-                     peer-checked:ring-2 peer-checked:ring-blue-400 peer-checked:border-blue-400">
-              <div class="flex items-center gap-2">
-                <span class="h-3 w-3 rounded-full bg-blue-500"></span>
-                <span class="font-medium text-gray-900 text-sm">Alinha os temas com profundidade e senso crítico</span>
-              </div>
-            </label>
+            <div class="relative">
+              <input id="carta-az-2" name="carta" type="radio" class="peer sr-only"
+                     value="az-2" (change)="selecionarCarta('Azul','Alinha os temas com profundidade e senso crítico','az-2')" />
+              <label for="carta-az-2"
+                     class="block w-full rounded-xl border border-blue-300 bg-blue-50 px-3 py-3 text-left shadow-sm cursor-pointer select-none
+                            peer-checked:ring-2 peer-checked:ring-blue-400 peer-checked:border-blue-400">
+                <div class="flex items-center gap-2">
+                  <span class="h-3 w-3 rounded-full bg-blue-500"></span>
+                  <span class="font-medium text-gray-900 text-sm">Alinha os temas com profundidade e senso crítico</span>
+                </div>
+              </label>
+            </div>
 
             <!-- VERMELHO -->
-            <input id="carta-vermelho-1" name="carta" type="radio" class="peer sr-only" />
-            <label for="carta-vermelho-1"
-              class="w-full rounded-xl border border-red-300 bg-red-50 px-3 py-3 text-left shadow-sm cursor-pointer select-none
-                     peer-checked:ring-2 peer-checked:ring-red-400 peer-checked:border-red-400">
-              <div class="flex items-center gap-2">
-                <span class="h-3 w-3 rounded-full bg-red-500"></span>
-                <span class="font-medium text-gray-900 text-sm">Toma a iniciativa e faz acontecer</span>
-              </div>
-            </label>
+            <div class="relative">
+              <input id="carta-vermelho-1" name="carta" type="radio" class="peer sr-only"
+                     value="vermelho-1" (change)="selecionarCarta('Vermelho','Toma a iniciativa e faz acontecer','vermelho-1')" />
+              <label for="carta-vermelho-1"
+                     class="block w-full rounded-xl border border-red-300 bg-red-50 px-3 py-3 text-left shadow-sm cursor-pointer select-none
+                            peer-checked:ring-2 peer-checked:ring-red-400 peer-checked:border-red-400">
+                <div class="flex items-center gap-2">
+                  <span class="h-3 w-3 rounded-full bg-red-500"></span>
+                  <span class="font-medium text-gray-900 text-sm">Toma a iniciativa e faz acontecer</span>
+                </div>
+              </label>
+            </div>
 
-            <input id="carta-vermelho-2" name="carta" type="radio" class="peer sr-only" />
-            <label for="carta-vermelho-2"
-              class="w-full rounded-xl border border-red-300 bg-red-50 px-3 py-3 text-left shadow-sm cursor-pointer select-none
-                     peer-checked:ring-2 peer-checked:ring-red-400 peer-checked:border-red-400">
-              <div class="flex items-center gap-2">
-                <span class="h-3 w-3 rounded-full bg-red-500"></span>
-                <span class="font-medium text-gray-900 text-sm">É prático e focado na ação e nos resultados</span>
-              </div>
-            </label>
+            <div class="relative">
+              <input id="carta-vermelho-2" name="carta" type="radio" class="peer sr-only"
+                     value="vermelho-2" (change)="selecionarCarta('Vermelho','É prático e focado na ação e nos resultados','vermelho-2')" />
+              <label for="carta-vermelho-2"
+                     class="block w-full rounded-xl border border-red-300 bg-red-50 px-3 py-3 text-left shadow-sm cursor-pointer select-none
+                            peer-checked:ring-2 peer-checked:ring-red-400 peer-checked:border-red-400">
+                <div class="flex items-center gap-2">
+                  <span class="h-3 w-3 rounded-full bg-red-500"></span>
+                  <span class="font-medium text-gray-900 text-sm">É prático e focado na ação e nos resultados</span>
+                </div>
+              </label>
+            </div>
 
             <!-- ROXO -->
-            <input id="carta-roxo-1" name="carta" type="radio" class="peer sr-only" />
-            <label for="carta-roxo-1"
-              class="w-full rounded-xl border border-violet-300 bg-violet-50 px-3 py-3 text-left shadow-sm cursor-pointer select-none
-                     peer-checked:ring-2 peer-checked:ring-violet-400 peer-checked:border-violet-400">
-              <div class="flex items-center gap-2">
-                <span class="h-3 w-3 rounded-full bg-violet-500"></span>
-                <span class="font-medium text-gray-900 text-sm">Avalia o passado para melhorar as suas práticas</span>
-              </div>
-            </label>
+            <div class="relative">
+              <input id="carta-roxo-1" name="carta" type="radio" class="peer sr-only"
+                     value="roxo-1" (change)="selecionarCarta('Roxo','Avalia o passado para melhorar as suas práticas','roxo-1')" />
+              <label for="carta-roxo-1"
+                     class="block w-full rounded-xl border border-violet-300 bg-violet-50 px-3 py-3 text-left shadow-sm cursor-pointer select-none
+                            peer-checked:ring-2 peer-checked:ring-violet-400 peer-checked:border-violet-400">
+                <div class="flex items-center gap-2">
+                  <span class="h-3 w-3 rounded-full bg-violet-500"></span>
+                  <span class="font-medium text-gray-900 text-sm">Avalia o passado para melhorar as suas práticas</span>
+                </div>
+              </label>
+            </div>
 
-            <input id="carta-roxo-2" name="carta" type="radio" class="peer sr-only" />
-            <label for="carta-roxo-2"
-              class="w-full rounded-xl border border-violet-300 bg-violet-50 px-3 py-3 text-left shadow-sm cursor-pointer select-none
-                     peer-checked:ring-2 peer-checked:ring-violet-400 peer-checked:border-violet-400">
-              <div class="flex items-center gap-2">
-                <span class="h-3 w-3 rounded-full bg-violet-500"></span>
-                <span class="font-medium text-gray-900 text-sm">Acompanha e monitora ações e resultados</span>
-              </div>
-            </label>
+            <div class="relative">
+              <input id="carta-roxo-2" name="carta" type="radio" class="peer sr-only"
+                     value="roxo-2" (change)="selecionarCarta('Roxo','Acompanha e monitora ações e resultados','roxo-2')" />
+              <label for="carta-roxo-2"
+                     class="block w-full rounded-xl border border-violet-300 bg-violet-50 px-3 py-3 text-left shadow-sm cursor-pointer select-none
+                            peer-checked:ring-2 peer-checked:ring-violet-400 peer-checked:border-violet-400">
+                <div class="flex items-center gap-2">
+                  <span class="h-3 w-3 rounded-full bg-violet-500"></span>
+                  <span class="font-medium text-gray-900 text-sm">Acompanha e monitora ações e resultados</span>
+                </div>
+              </label>
+            </div>
+
           </div>
         </div>
       </div>
@@ -261,10 +302,14 @@
     <!-- BOTÕES - DESKTOP -->
     <div class="hidden md:flex items-center justify-end gap-3 mt-4">
       <button type="button"
-        class="inline-flex items-center justify-center rounded-lg bg-blue-600 text-white px-5 py-3 font-medium shadow-sm hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+        (click)="onConfirmar()"
+        [disabled]="!selectedAlvoId || !selectedCarta"
+        class="inline-flex items-center justify-center rounded-lg px-5 py-3 font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-400
+               text-white disabled:opacity-50 disabled:cursor-not-allowed
+               bg-blue-600 hover:bg-teal-600">
         Confirmar associação
       </button>
-      <button type="reset"
+      <button type="button" (click)="limparSelecao()"
         class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 px-5 py-3 font-medium">
         Limpar seleção
       </button>
@@ -275,10 +320,14 @@
   <div class="md:hidden fixed bottom-0 inset-x-0 z-50 bg-white border-t border-gray-200 px-3 py-3">
     <div class="max-w-6xl mx-auto flex items-center gap-3">
       <button type="button"
-        class="flex-1 inline-flex items-center justify-center rounded-lg bg-blue-600 text-white px-4 py-3 font-semibold shadow-sm hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+        (click)="onConfirmar()"
+        [disabled]="!selectedAlvoId || !selectedCarta"
+        class="flex-1 inline-flex items-center justify-center rounded-lg px-4 py-3 font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-400
+               text-white disabled:opacity-50 disabled:cursor-not-allowed
+               bg-blue-600 hover:bg-teal-600">
         Confirmar
       </button>
-      <button type="reset"
+      <button type="button" (click)="limparSelecao()"
         class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 px-4 py-3 font-semibold">
         Limpar
       </button>

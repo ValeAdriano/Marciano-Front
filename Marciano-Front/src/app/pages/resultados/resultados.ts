@@ -30,11 +30,9 @@ export class ResultadosComponent implements AfterViewInit, OnDestroy {
   @ViewChild('chartEl', { static: false }) chartEl!: ElementRef<HTMLCanvasElement>;
   private chart: Chart | null = null;
 
-  // Mostra resultados somente quando TODAS as rodadas terminarem.
-  // Substitua por estado real vindo do seu serviço.
   readonly allRoundsFinished = signal<boolean>(true);
 
-  // Dados falsos: contagem de cartas recebidas pelo usuário por cor
+  // Exemplo de dados: votos por cor
   readonly receivedByColor = signal<Record<Cor, number>>({
     Laranja: 3,
     Verde: 5,
@@ -44,13 +42,12 @@ export class ResultadosComponent implements AfterViewInit, OnDestroy {
     Roxo: 1,
   });
 
-  // Derivados para uso limpo no template
   readonly ctLaranja = computed(() => this.receivedByColor().Laranja);
-  readonly ctVerde = computed(() => this.receivedByColor().Verde);
+  readonly ctVerde   = computed(() => this.receivedByColor().Verde);
   readonly ctAmarelo = computed(() => this.receivedByColor().Amarelo);
-  readonly ctAzul = computed(() => this.receivedByColor().Azul);
-  readonly ctVermelho = computed(() => this.receivedByColor().Vermelho);
-  readonly ctRoxo = computed(() => this.receivedByColor().Roxo);
+  readonly ctAzul    = computed(() => this.receivedByColor().Azul);
+  readonly ctVermelho= computed(() => this.receivedByColor().Vermelho);
+  readonly ctRoxo    = computed(() => this.receivedByColor().Roxo);
   readonly total = computed(
     () =>
       this.ctLaranja() +
@@ -61,7 +58,6 @@ export class ResultadosComponent implements AfterViewInit, OnDestroy {
       this.ctRoxo(),
   );
 
-  // Cores das barras (alinhadas com a UI)
   private readonly barColors: Record<Cor, string> = {
     Azul: '#2563eb',      // blue-600
     Amarelo: '#eab308',   // yellow-500
@@ -92,18 +88,25 @@ export class ResultadosComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.destroyChart();
+    // Destroi o effect para evitar vazamento
+    (this.renderEffect as any)?.destroy?.();
   }
 
   private renderChart(dataset: Record<Cor, number>): void {
     this.destroyChart();
 
-    const ctx = this.chartEl.nativeElement.getContext('2d');
+    const canvas = this.chartEl.nativeElement;
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Ordem visual: destaque as principais e mantenha as demais
+    // Ordem visual desejada no eixo Y (cada cor é uma categoria)
     const labels: Cor[] = ['Azul', 'Amarelo', 'Verde', 'Laranja', 'Vermelho', 'Roxo'];
     const values = labels.map((k) => dataset[k]);
     const colors = labels.map((k) => this.barColors[k]);
+
+    // Ajuste de altura do canvas para caber todas as barras
+    const rowHeight = 44; // px por barra (altura + espaçamento)
+    canvas.height = Math.max(200, labels.length * rowHeight);
 
     this.chart = new Chart(ctx, {
       type: 'bar',
@@ -111,34 +114,47 @@ export class ResultadosComponent implements AfterViewInit, OnDestroy {
         labels,
         datasets: [
           {
-            label: 'Cartas recebidas por cor',
+            label: 'Votos por cor',
             data: values,
             backgroundColor: colors,
             borderWidth: 0,
+            borderRadius: 6,
+            // controla espessura das barras
+            maxBarThickness: 32,
           },
         ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+
+        // Tornar o gráfico horizontal
+        indexAxis: 'y',
+
         scales: {
-          y: {
+          // Agora o eixo X é o numérico (quantidade de votos)
+          x: {
             beginAtZero: true,
             ticks: { precision: 0 },
             grid: { color: 'rgba(0,0,0,0.06)' },
+            title: { display: true, text: 'Votos' },
           },
-          x: {
+          // Eixo Y são as categorias (cores)
+          y: {
             grid: { display: false },
+            title: { display: true, text: 'Cores' },
           },
         },
         plugins: {
           legend: { display: false },
           tooltip: {
             callbacks: {
+              // Ex.: "Azul: 7"
               label: (ctx) => `${ctx.label}: ${ctx.formattedValue}`,
             },
           },
         },
+        animation: { duration: 250 },
       } as ChartConfiguration['options'],
     });
   }
@@ -149,6 +165,4 @@ export class ResultadosComponent implements AfterViewInit, OnDestroy {
       this.chart = null;
     }
   }
-
-
 }
