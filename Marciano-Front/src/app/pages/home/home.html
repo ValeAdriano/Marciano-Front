@@ -1,5 +1,5 @@
 <main class="min-h-screen bg-white">
-  <!-- Título / Hero -->
+  <!-- Título -->
   <section class="max-w-5xl mx-auto px-4 pt-10 pb-6 text-center">
     <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">
       <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-yellow-500 to-green-600">
@@ -12,58 +12,85 @@
     </p>
   </section>
 
-  <!-- Participante -->
+  <!-- Formulário -->
   <section class="max-w-5xl mx-auto px-4">
     <div class="max-w-xl mx-auto">
-      <div class="bg-white rounded-2xl shadow-card ring-1 ring-black/5 p-6">
+      <form
+        class="bg-white rounded-2xl shadow-card ring-1 ring-black/5 p-6"
+        [formGroup]="form"
+        (ngSubmit)="onSubmit()"
+        novalidate
+      >
         <h2 class="text-lg font-semibold text-blue-800">Sou Participante</h2>
         <p class="text-sm text-gray-600 mt-1">Entre em uma sala existente para participar da dinâmica</p>
 
-        <!-- Apenas visual -->
         <div class="mt-4 space-y-4">
+          <!-- Código da Sala -->
           <div>
             <label for="roomCode" class="block text-sm font-medium text-blue-700 mb-1">Código da Sala</label>
             <input
               id="roomCode"
               type="text"
               placeholder="Ex: ABC123"
-              disabled
-              class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
+              formControlName="roomCode"
+              autocomplete="off"
+              class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 uppercase"
+              [attr.aria-invalid]="form.controls.roomCode.invalid && (form.controls.roomCode.dirty || form.controls.roomCode.touched)"
+              [attr.aria-describedby]="form.controls.roomCode.invalid ? 'roomCode-error' : null"
             />
+            @if (form.controls.roomCode.invalid && (form.controls.roomCode.dirty || form.controls.roomCode.touched)) {
+              <p id="roomCode-error" class="mt-1 text-sm text-red-600">Informe um código válido (3–10 alfanuméricos).</p>
+            }
           </div>
 
+          <!-- Nome -->
           <div>
             <label for="name" class="block text-sm font-medium text-blue-700 mb-1">Seu Nome</label>
             <input
               id="name"
               type="text"
               placeholder="Ex: Maria Silva"
-              disabled
-              class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-60"
+              formControlName="name"
+              autocomplete="name"
+              class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-green-600"
+              [attr.aria-invalid]="form.controls.name.invalid && (form.controls.name.dirty || form.controls.name.touched)"
+              [attr.aria-describedby]="form.controls.name.invalid ? 'name-error' : null"
             />
+            @if (form.controls.name.invalid && (form.controls.name.dirty || form.controls.name.touched)) {
+              <p id="name-error" class="mt-1 text-sm text-red-600">Informe um nome com pelo menos 2 caracteres.</p>
+            }
           </div>
 
+          <!-- Envelope (hex) -->
           <div>
             <label for="envelope" class="block text-sm font-medium text-blue-700 mb-1">Envelope</label>
-            <input
+            <select
               id="envelope"
-              type="text"
-              placeholder="Ex: Seu ícone/cor preferido"
-              disabled
-              class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 disabled:opacity-60"
-            />
+              formControlName="envelope"
+              class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+              [attr.aria-invalid]="form.controls.envelope.invalid && (form.controls.envelope.dirty || form.controls.envelope.touched)"
+              [attr.aria-describedby]="form.controls.envelope.invalid ? 'envelope-error' : null"
+            >
+              <option value="" disabled selected>Selecione seu envelope</option>
+              <option *ngFor="let opt of envelopeOptions" [value]="opt.value">
+                {{ opt.label }}
+              </option>
+            </select>
+            @if (form.controls.envelope.invalid && (form.controls.envelope.dirty || form.controls.envelope.touched)) {
+              <p id="envelope-error" class="mt-1 text-sm text-red-600">Selecione um envelope.</p>
+            }
           </div>
 
-          <!-- Rota para o lobby -->
-          <a
-            routerLink="/lobby"
-            role="button"
-            class="w-full inline-flex items-center justify-center rounded-lg bg-blue-600 text-white px-4 py-2.5 font-medium shadow-sm hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+          <!-- Botão -->
+          <button
+            type="submit"
+            class="w-full inline-flex items-center justify-center rounded-lg bg-blue-600 text-white px-4 py-2.5 font-medium shadow-sm hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 disabled:opacity-60"
+            [disabled]="submitting()"
           >
-            Entrar na Sala
-          </a>
+            @if (!submitting()) { Entrar na Sala } @else { Processando... }
+          </button>
         </div>
-      </div>
+      </form>
     </div>
   </section>
 
@@ -77,7 +104,7 @@
           <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-500 text-white text-sm font-semibold">1</span>
           <div>
             <div class="font-medium text-blue-800">Entrar</div>
-            <p class="text-sm text-gray-600">Informe o código da sala para participar (visual).</p>
+            <p class="text-sm text-gray-600">Informe o código da sala para participar.</p>
           </div>
         </div>
 

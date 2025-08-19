@@ -9,5 +9,9 @@ import { RouterLink } from '@angular/router';
   styleUrl: './lobby.scss'
 })
 export class LobbyComponent {
+  ngOnInit() {
+  const session = localStorage.getItem('qa:userSession');
+  console.log('Sessão salva:', session ? JSON.parse(session) : null);
+}
 
 }
