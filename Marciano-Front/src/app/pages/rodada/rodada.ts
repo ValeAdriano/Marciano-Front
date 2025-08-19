@@ -1,29 +1,30 @@
-import { Component, computed, signal, WritableSignal, AfterViewInit, OnInit } from '@angular/core';
+import {
+  Component, computed, signal, WritableSignal, AfterViewInit, OnInit,
+  inject, ChangeDetectionStrategy
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
-import { DragDropModule, CdkDragDrop, transferArrayItem, CdkDragStart, CdkDragEnd } from '@angular/cdk/drag-drop';
+import { Router, RouterLink } from '@angular/router';
+import {
+  DragDropModule, CdkDragDrop, transferArrayItem, CdkDragStart, CdkDragEnd
+} from '@angular/cdk/drag-drop';
 import Swal from 'sweetalert2';
 
-// Swiper core + CSS (sem navegação/paginação)
+// Swiper core + CSS
 import Swiper from 'swiper';
 import 'swiper/css';
-
-// Módulos do Swiper
 import { Mousewheel, Keyboard, FreeMode } from 'swiper/modules';
+
+import { RodadaService } from './rodada.service';
+import { HomeService } from '../home/home.service';
 
 type Cor = 'Laranja' | 'Verde' | 'Amarelo' | 'Azul' | 'Vermelho' | 'Roxo';
 
-type Carta = {
-  id: string;
-  cor: Cor;
-  texto: string;
-};
+type Carta = { id: string; cor: Cor; texto: string; };
 
 type Alvo = {
   id: string;
   nome: string;
-  envelope: Cor;
-  iniciais: string;
+  envelope: Cor;  // usado para cor do avatar
 };
 
 @Component({
@@ -32,20 +33,32 @@ type Alvo = {
   imports: [CommonModule, RouterLink, DragDropModule],
   templateUrl: './rodada.html',
   styleUrl: './rodada.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'block' },
 })
 export class RodadaComponent implements AfterViewInit, OnInit {
+  private readonly rodada = inject(RodadaService);
+  private readonly home = inject(HomeService);
+  private readonly router = inject(Router);
+
   readonly rodadaNumero = 1;
 
-  // Alvos na mesa — pode ter quantos quiser (adicione/retire aqui)
+  // Header (expostos pelo service)
+  roomCode = this.rodada.roomCode;
+  timeLabel = this.rodada.timeLabel;
+  progress = this.rodada.progress;
+  session = this.rodada.session;
+
+  // Alvos (participantes de destino) — mocks por enquanto
   readonly alvos: Alvo[] = [
-    { id: 'joao',   nome: 'João Pereira',  envelope: 'Azul',     iniciais: 'JP' },
-    { id: 'maria',  nome: 'Maria Silva',   envelope: 'Verde',    iniciais: 'MS' },
-    { id: 'camila', nome: 'Camila Rocha',  envelope: 'Amarelo',  iniciais: 'CR' },
-    { id: 'lucas',  nome: 'Lucas Alves',   envelope: 'Azul',     iniciais: 'LA' },
-    { id: 'ana',    nome: 'Ana Costa',     envelope: 'Laranja',  iniciais: 'AC' },
-    { id: 'pedro',  nome: 'Pedro Ramos',   envelope: 'Vermelho', iniciais: 'PR' },
-    { id: 'juliana',nome: 'Juliana Melo',  envelope: 'Roxo',     iniciais: 'JM' },
-    { id: 'felipe', nome: 'Felipe Souza',  envelope: 'Verde',    iniciais: 'FS' },
+    { id: 'joao',    nome: 'João Pereira',   envelope: 'Azul'     },
+    { id: 'maria',   nome: 'Maria Silva',    envelope: 'Verde'    },
+    { id: 'camila',  nome: 'Camila Rocha',   envelope: 'Amarelo'  },
+    { id: 'lucas',   nome: 'Lucas Alves',    envelope: 'Azul'     },
+    { id: 'ana',     nome: 'Ana Costa',      envelope: 'Laranja'  },
+    { id: 'pedro',   nome: 'Pedro Ramos',    envelope: 'Vermelho' },
+    { id: 'juliana', nome: 'Juliana Melo',   envelope: 'Roxo'     },
+    { id: 'felipe',  nome: 'Felipe Souza',   envelope: 'Verde'    },
   ];
 
   // Mão do usuário
@@ -64,24 +77,19 @@ export class RodadaComponent implements AfterViewInit, OnInit {
     { id: 'roxo-2', cor: 'Roxo',    texto: 'Acompanha e monitora ações e resultados' },
   ]);
 
-  /**
-   * Associações por alvo (cada alvo aceita no máx. 1 carta).
-   * Agora dinâmico: criamos o array sob demanda com ensureBucket().
-   */
+  /** Associações por alvo (máx. 1 carta) */
   assigned: Record<string, Carta[]> = {};
 
-  // IDs de listas do CDK
+  // DnD lists
   readonly handListId = 'handList';
   readonly targetListId = (alvoId: string) => `target_${alvoId}`;
-
-  // Conexões de drop
   connectedTo = computed(() => [this.handListId, ...this.alvos.map(a => this.targetListId(a.id))]);
 
-  // Paleta
+  // Paleta (alinha com tokens do design system)
   readonly colorHex: Record<Cor, string> = {
-    Azul: '#2563eb',
-    Amarelo: '#eab308',
-    Verde: '#22c55e',
+    Azul: '#0067b1',
+    Amarelo: '#ecc500',
+    Verde: '#75b463',
     Laranja: '#f97316',
     Vermelho: '#ef4444',
     Roxo: '#7c3aed',
@@ -90,25 +98,17 @@ export class RodadaComponent implements AfterViewInit, OnInit {
   // Swiper
   private swiper?: Swiper;
 
-  // Controle: carta “levantada” (selecionada) e carta em arraste
+  // Controle: carta “levantada” e arraste
   selectedCardId = signal<string | null>(null);
   draggingCardId = signal<string | null>(null);
 
-  // Garante um bucket (array) para um alvo — cria se não existir
-  private ensureBucket(alvoId: string): Carta[] {
-    if (!this.assigned[alvoId]) {
-      this.assigned[alvoId] = [];
-    }
-    return this.assigned[alvoId];
-  }
-
-  // Inicializa buckets para todos os alvos atuais
-  private ensureAllBuckets(): void {
-    for (const a of this.alvos) this.ensureBucket(a.id);
-  }
-
   ngOnInit(): void {
+    if (!this.home.getSession()) {
+      this.router.navigateByUrl('/');
+      return;
+    }
     this.ensureAllBuckets();
+    this.rodada.init(); // inicia timer e expõe sessão
   }
 
   ngAfterViewInit(): void {
@@ -136,34 +136,28 @@ export class RodadaComponent implements AfterViewInit, OnInit {
       keyboard: { enabled: true },
       watchSlidesProgress: true,
       updateOnWindowResize: true,
-      breakpoints: {
-        0:    { spaceBetween: 12 },
-        640:  { spaceBetween: 14 },
-        1024: { spaceBetween: 16 },
-      },
-      observer: true,
-      observeParents: true,
-      observeSlideChildren: true,
-      on: {
-        afterInit: (sw) => sw.update(),
-        resize:    (sw) => sw.update(),
-        observerUpdate: (sw) => sw.update(),
-        slideChange: () => {/* opcional */},
-      },
+      breakpoints: { 0:{spaceBetween:12}, 640:{spaceBetween:14}, 1024:{spaceBetween:16} },
+      observer: true, observeParents: true, observeSlideChildren: true,
+      on: { afterInit: (sw) => sw.update(), resize: (sw) => sw.update(), observerUpdate: (sw) => sw.update() },
     });
 
     queueMicrotask(() => this.swiper?.update());
   }
 
-  // Clique na carta: alterna “levantar/abaixar” e habilita drag-to-target
+  // Utils
+  private ensureBucket(alvoId: string): Carta[] {
+    if (!this.assigned[alvoId]) this.assigned[alvoId] = [];
+    return this.assigned[alvoId];
+  }
+  private ensureAllBuckets(): void {
+    for (const a of this.alvos) this.ensureBucket(a.id);
+  }
+
   onCardClick(id: string) {
     this.selectedCardId.update(curr => (curr === id ? null : id));
   }
-
-  // Permite arrastar somente se a carta estiver selecionada
   canDrag = (id: string) => this.selectedCardId() === id;
 
-  // Eventos de arraste (opcional, para UI/estilos)
   onDragStarted(ev: CdkDragStart<Carta>) {
     const id = ev.source.data?.id;
     if (!id || !this.canDrag(id)) {
@@ -172,15 +166,12 @@ export class RodadaComponent implements AfterViewInit, OnInit {
     }
     this.draggingCardId.set(id ?? null);
   }
-
   onDragEnded(_: CdkDragEnd<Carta>) {
     this.draggingCardId.set(null);
   }
 
-  // Predicate: só aceita se alvo estiver vazio (1 carta por alvo)
   canEnterTarget = (alvoId: string) => () => this.ensureBucket(alvoId).length === 0;
 
-  // Drop mão -> alvo (somente se a carta dropada for a selecionada)
   async onDropToTarget(event: CdkDragDrop<Carta[]>, alvo: Alvo) {
     const destinoId = this.targetListId(alvo.id);
     if (event.previousContainer.id !== this.handListId || event.container.id !== destinoId) return;
@@ -221,17 +212,10 @@ export class RodadaComponent implements AfterViewInit, OnInit {
 
     if (!confirm.isConfirmed) return;
 
-    transferArrayItem(
-      event.previousContainer.data,
-      event.container.data,
-      event.previousIndex,
-      0
-    );
+    transferArrayItem(event.previousContainer.data, event.container.data, event.previousIndex, 0);
 
     this.hand.set([...this.hand()]);
-    // Reatribui o array do alvo para disparar detecção de mudanças
-    const updated = [...this.ensureBucket(alvo.id)];
-    this.assigned[alvo.id] = updated;
+    this.assigned[alvo.id] = [...this.ensureBucket(alvo.id)];
 
     this.selectedCardId.set(null);
     this.draggingCardId.set(null);
@@ -245,14 +229,10 @@ export class RodadaComponent implements AfterViewInit, OnInit {
       allowEscapeKey: false,
       allowEnterKey: false,
       showConfirmButton: false,
-      didOpen: () => {
-        Swal.showLoading();
-        // this.socket.on('proxima-rodada', () => Swal.close());
-      }
+      didOpen: () => Swal.showLoading(),
     });
   }
 
-  // Desfazer associação (volta carta pra mão)
   removerDoAlvo(alvoId: string, idx = 0) {
     const bucket = this.ensureBucket(alvoId);
     const carta = bucket[idx];
@@ -267,19 +247,9 @@ export class RodadaComponent implements AfterViewInit, OnInit {
   trackById = (_: number, item: { id: string }) => item.id;
 
   private toastInfo(msg: string) {
-    void Swal.fire({
-      toast: true,
-      position: 'top',
-      icon: 'info',
-      title: msg,
-      timer: 1600,
-      showConfirmButton: false,
-    });
+    void Swal.fire({ toast: true, position: 'top', icon: 'info', title: msg, timer: 1600, showConfirmButton: false });
   }
-
   private escape(s: string) {
-    const d = document.createElement('div');
-    d.innerText = s;
-    return d.innerHTML;
+    const d = document.createElement('div'); d.innerText = s; return d.innerHTML;
   }
 }
