@@ -1,0 +1,122 @@
+<main class="min-h-screen bg-white">
+  <!-- Header / Saudação -->
+  <section class="max-w-5xl mx-auto px-4 pt-10 pb-6 text-center">
+    <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">
+      <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-yellow-500 to-green-600">
+        Olá {{ displayName() }} 👋
+      </span>
+    </h1>
+    <p class="mt-3 text-gray-700 max-w-3xl mx-auto">
+      Crie uma nova sala para iniciar a dinâmica ou acesse os relatórios de salas anteriores.
+    </p>
+  </section>
+
+  <!-- Criar sala -->
+  <section class="max-w-5xl mx-auto px-4 pb-8">
+    <div class="max-w-xl mx-auto">
+      <form
+        class="bg-white rounded-2xl shadow-card ring-1 ring-black/5 p-6"
+        [formGroup]="form"
+        (ngSubmit)="onCreateRoom()"
+        novalidate
+      >
+        <h2 class="text-lg font-semibold text-blue-800">Criar nova sala</h2>
+        <p class="text-sm text-gray-600 mt-1">Preencha os dados para criar uma nova sala</p>
+
+        <div class="mt-4 space-y-4">
+          <!-- Nome da sala -->
+          <div>
+            <label for="room-title" class="block text-sm font-medium text-blue-700 mb-1">Nome da sala</label>
+            <input
+              id="room-title"
+              type="text"
+              placeholder="Ex.: Dinâmica do time de produto"
+              formControlName="title"
+              autocomplete="off"
+              class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
+              [attr.aria-invalid]="form.controls.title.invalid && (form.controls.title.dirty || form.controls.title.touched)"
+              [attr.aria-describedby]="form.controls.title.invalid ? 'title-error' : null"
+            />
+            <p *ngIf="form.controls.title.invalid && (form.controls.title.dirty || form.controls.title.touched)" id="title-error" class="mt-1 text-sm text-red-600">Informe um nome (mín. 3 caracteres).</p>
+          </div>
+
+          <!-- Código -->
+          <div>
+            <label class="block text-sm font-medium text-blue-700 mb-1">Código da sala</label>
+            <div class="flex items-stretch gap-2">
+              <div class="flex-1 flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                <div>
+                  <div class="text-xs text-gray-500">Código gerado</div>
+                  <div class="font-mono text-lg tracking-widest select-text">{{ code() || '— — — — — —' }}</div>
+                </div>
+                <button type="button" class="inline-flex items-center px-2 py-1 rounded bg-blue-100 text-blue-700 text-xs font-medium hover:bg-blue-200 ml-3" (click)="copyCode()" [disabled]="!code()">
+                  Copiar
+                </button>
+              </div>
+              <button type="button" class="inline-flex items-center px-4 py-2 rounded-lg bg-blue-600 text-white font-medium shadow-sm hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 min-w-[140px]" (click)="generateCode()">
+                Gerar código
+              </button>
+            </div>
+            <p class="text-xs text-gray-500 mt-1">6 caracteres, letras maiúsculas e números. Ex.: <code>7KQ2XJ</code></p>
+          </div>
+
+          <!-- Ações -->
+          <div class="flex flex-wrap gap-2 pt-2">
+            <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-green-600 text-white px-4 py-2.5 font-medium shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-yellow-400 disabled:opacity-60" [disabled]="form.invalid || !code() || creating()">
+              {{ creating() ? 'Criando...' : 'Criar sala' }}
+            </button>
+            <button type="button" class="inline-flex items-center justify-center rounded-lg bg-gray-100 text-gray-700 px-4 py-2.5 font-medium shadow-sm hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60" (click)="resetForm()" [disabled]="creating()">
+              Limpar
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-3" *ngIf="createdRoom() as r">
+          <div class="bg-green-50 border border-green-200 rounded-lg p-3">
+            Sala <b>{{ r.title }}</b> criada com sucesso!
+            <div class="mt-1 text-sm">
+              Código: <b>{{ r.code }}</b>
+              <button type="button" class="inline-flex items-center px-2 py-1 rounded bg-blue-100 text-blue-700 text-xs font-medium hover:bg-blue-200 ml-2" (click)="copyText(r.code)">copiar</button>
+            </div>
+            <div class="mt-1 text-sm" *ngIf="r.joinUrl">
+              Link: <a class="text-blue-700 underline" [href]="r.joinUrl" target="_blank" rel="noopener noreferrer">{{ r.joinUrl }}</a>
+              <button type="button" class="inline-flex items-center px-2 py-1 rounded bg-blue-100 text-blue-700 text-xs font-medium hover:bg-blue-200 ml-2" (click)="copyText(r.joinUrl!)">copiar link</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- Relatórios -->
+  <section class="max-w-5xl mx-auto px-4 pb-24">
+    <div class="bg-white rounded-2xl shadow-card ring-1 ring-black/5 p-6">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-blue-800">Relatórios de salas anteriores</h2>
+        <button type="button" class="inline-flex items-center px-4 py-2 rounded-lg bg-blue-100 text-blue-700 font-medium shadow-sm hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60" (click)="refreshReports()" [disabled]="loadingReports()">
+          {{ loadingReports() ? 'Carregando...' : 'Atualizar' }}
+        </button>
+      </div>
+
+      <div class="mt-4" *ngIf="reports().length === 0">
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-yellow-700">
+          Nenhuma sala anterior encontrada. Assim que criar e finalizar salas, você verá os relatórios aqui.
+        </div>
+      </div>
+
+      <ul class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4" *ngIf="reports().length > 0">
+        <li *ngFor="let r of reports(); trackBy: trackById">
+          <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 flex flex-col gap-1">
+            <div class="text-sm text-gray-500">Criada em {{ r.createdAt | date:'short' }}</div>
+            <div class="font-semibold text-blue-800 truncate">{{ r.title }}</div>
+            <div class="text-sm text-gray-600">Código: <b>{{ r.code }}</b></div>
+            <div class="flex gap-2 mt-2">
+              <a class="inline-flex items-center px-4 py-2 rounded-lg bg-blue-600 text-white font-medium shadow-sm hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-yellow-400" [href]="r.reportUrl" target="_blank" rel="noopener noreferrer">Ver relatório</a>
+              <button type="button" class="inline-flex items-center px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium shadow-sm hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400" (click)="copyText(r.reportUrl)">Copiar link</button>
+            </div>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </section>
+</main>
