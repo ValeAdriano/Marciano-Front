@@ -1,42 +1,35 @@
-/* Fundo tipo mesa */
 .uno {
-  background:
-    radial-gradient(1200px 600px at 50% -10%, rgba(0, 0, 0, 0.25), transparent 60%),
-    radial-gradient(800px 500px at 0% 0%, rgba(0, 85, 120, 0.25), transparent 70%),
-    linear-gradient(180deg, #0b1b2a 0%, #0f2539 60%, #0b1b2a 100%);
+  background: #fff;
   min-height: 100vh;
 }
 
 /* HUD */
 .hud-box {
-  background: linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.06));
-  border: 2px solid rgba(255,255,255,.45);
-  border-radius: 14px;
+  background: #fff;
+  border: 2px solid #e5e7eb;
+  border-radius: 16px;
   padding: .5rem .75rem;
-  color: #fff;
+  color: #1e293b;
   min-width: 140px;
-  box-shadow: 0 6px 14px rgba(0,0,0,.25);
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
 }
-.hud-label { font-size: 11px; color: rgba(255,255,255,.8); }
-.hud-value { font-weight: 800; }
+.hud-label { font-size: 12px; color: #475569; }
+.hud-value { font-weight: 800; color: #2563eb; }
 
 /* Mesa */
 .mesa {
-  background:
-    radial-gradient(500px 250px at 90% -10%, rgba(255,255,255,0.06), transparent 60%),
-    radial-gradient(800px 300px at 10% 110%, rgba(255,255,255,0.04), transparent 60%),
-    linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
-  border: 2px solid rgba(255,255,255,.2);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), 0 12px 26px rgba(0,0,0,.35);
-  color: #fff;
+  background: #fff;
+  border: 2px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  color: #1e293b;
 }
 
 /* Cartões/Alvos estilo UNO */
 .uno-card {
   position: relative;
-  border: 6px solid #fff;
-  border-radius: 18px;
-  box-shadow: 0 10px 20px rgba(0,0,0,.3), 0 3px 8px rgba(0,0,0,.2);
+  border: 2px solid #e5e7eb;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
   background: #fff;
   overflow: hidden;
   user-select: none;
@@ -44,18 +37,18 @@
 
 .alvo-drop {
   padding: .75rem;
-  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
-  border: 2px solid rgba(255,255,255,.25);
+  background: #fff;
+  border: 2px solid #c6c8cc;
   min-height: 86px;
 }
 
 .chip {
   width: 2.25rem; height: 2.25rem;
-  border-radius: 10px;
+  border-radius: 999px;
   font-weight: 900;
-  color: #0b1020;
+  color: #1e293b;
   display: inline-flex; align-items: center; justify-content: center;
-  box-shadow: inset 0 0 0 3px #fff, 0 3px 10px rgba(0,0,0,.2);
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
 }
 
 /* Pill com carta atribuída */
@@ -64,21 +57,21 @@
   align-items: center;
   gap: .5rem;
   padding: .25rem .5rem;
-  border: 2px solid #fff;
+  border: 2px solid #e5e7eb;
   border-radius: 999px;
-  background: rgba(255,255,255,.08);
-  color: #fff;
+  background: #f1f5f9;
+  color: #1e293b;
   font-size: .75rem;
 }
 .pill-dot {
   width: 10px; height: 10px; border-radius: 999px;
-  box-shadow: 0 0 0 2px #fff;
+  box-shadow: 0 0 0 2px #e5e7eb;
 }
 .pill-x {
   margin-left: .25rem;
   background: transparent;
   border: 0;
-  color: #fff;
+  color: #ef4444;
   font-weight: 900;
   cursor: pointer;
 }
@@ -137,23 +130,23 @@
 }
 .carta .texto {
   font-weight: 700;
-  color: #0f172a;
+  color: #1e293b;
 }
 
 /* Gradientes por cor (leve) */
-.carta.laranja   { background: linear-gradient(135deg, #fff1e6, #ffd4b3); }
-.carta.verde     { background: linear-gradient(135deg, #eafff3, #c9f9dc); }
-.carta.amarelo   { background: linear-gradient(135deg, #fffbe6, #ffeaa6); }
-.carta.azul      { background: linear-gradient(135deg, #eaf2ff, #cfe2ff); }
-.carta.vermelho  { background: linear-gradient(135deg, #ffe9e9, #ffc9c9); }
-.carta.roxo      { background: linear-gradient(135deg, #f2eaff, #e0d2ff); }
+.carta.laranja   { background: linear-gradient(135deg, #fff7ed, #fde68a); }
+.carta.verde     { background: linear-gradient(135deg, #f0fdf4, #bbf7d0); }
+.carta.amarelo   { background: linear-gradient(135deg, #fefce8, #fde68a); }
+.carta.azul      { background: linear-gradient(135deg, #eff6ff, #bae6fd); }
+.carta.vermelho  { background: linear-gradient(135deg, #fef2f2, #fca5a5); }
+.carta.roxo      { background: linear-gradient(135deg, #f3e8ff, #c4b5fd); }
 
 /* Drag preview/placeholder */
 .preview { opacity: .95; transform: rotate(-3deg) scale(1.02); }
 .placeholder {
-  width: 240px; height: 64px;
-  border: 2px dashed rgba(255,255,255,.5);
-  border-radius: 14px;
+  width: 150px; height: 64px;
+  border: 2px dashed #009eb0;
+  border-radius: 16px;
 }
 
 /* Efeitos de drag */
@@ -162,7 +155,7 @@
 
 /* Alvo “em foco” quando arrastando */
 .cdk-drop-list.cdk-drop-list-dragging .alvo-drop {
-  outline: 2px dashed rgba(255,255,255,.25);
+  outline: 2px dashed #2563eb;
   outline-offset: 6px;
 }
 

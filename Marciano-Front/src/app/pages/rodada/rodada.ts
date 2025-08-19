@@ -1,4 +1,4 @@
-import { Component, computed, signal, WritableSignal, AfterViewInit } from '@angular/core';
+import { Component, computed, signal, WritableSignal, AfterViewInit, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { DragDropModule, CdkDragDrop, transferArrayItem, CdkDragStart, CdkDragEnd } from '@angular/cdk/drag-drop';
@@ -33,15 +33,19 @@ type Alvo = {
   templateUrl: './rodada.html',
   styleUrl: './rodada.scss',
 })
-export class RodadaComponent implements AfterViewInit {
+export class RodadaComponent implements AfterViewInit, OnInit {
   readonly rodadaNumero = 1;
 
-  // Alvos na mesa (exemplo)
+  // Alvos na mesa — pode ter quantos quiser (adicione/retire aqui)
   readonly alvos: Alvo[] = [
     { id: 'joao',   nome: 'João Pereira',  envelope: 'Azul',     iniciais: 'JP' },
     { id: 'maria',  nome: 'Maria Silva',   envelope: 'Verde',    iniciais: 'MS' },
     { id: 'camila', nome: 'Camila Rocha',  envelope: 'Amarelo',  iniciais: 'CR' },
     { id: 'lucas',  nome: 'Lucas Alves',   envelope: 'Azul',     iniciais: 'LA' },
+    { id: 'ana',    nome: 'Ana Costa',     envelope: 'Laranja',  iniciais: 'AC' },
+    { id: 'pedro',  nome: 'Pedro Ramos',   envelope: 'Vermelho', iniciais: 'PR' },
+    { id: 'juliana',nome: 'Juliana Melo',  envelope: 'Roxo',     iniciais: 'JM' },
+    { id: 'felipe', nome: 'Felipe Souza',  envelope: 'Verde',    iniciais: 'FS' },
   ];
 
   // Mão do usuário
@@ -60,13 +64,11 @@ export class RodadaComponent implements AfterViewInit {
     { id: 'roxo-2', cor: 'Roxo',    texto: 'Acompanha e monitora ações e resultados' },
   ]);
 
-  // Cada alvo aceita no máx. 1 carta
-  assigned: Record<string, Carta[]> = {
-    joao:   [],
-    maria:  [],
-    camila: [],
-    lucas:  [],
-  };
+  /**
+   * Associações por alvo (cada alvo aceita no máx. 1 carta).
+   * Agora dinâmico: criamos o array sob demanda com ensureBucket().
+   */
+  assigned: Record<string, Carta[]> = {};
 
   // IDs de listas do CDK
   readonly handListId = 'handList';
@@ -92,64 +94,66 @@ export class RodadaComponent implements AfterViewInit {
   selectedCardId = signal<string | null>(null);
   draggingCardId = signal<string | null>(null);
 
-ngAfterViewInit(): void {
-  const el = document.querySelector('.mao-swiper') as HTMLElement | null;
-  if (!el) return;
+  // Garante um bucket (array) para um alvo — cria se não existir
+  private ensureBucket(alvoId: string): Carta[] {
+    if (!this.assigned[alvoId]) {
+      this.assigned[alvoId] = [];
+    }
+    return this.assigned[alvoId];
+  }
 
-  this.swiper = new Swiper(el, {
-    modules: [Mousewheel, Keyboard, FreeMode], // FreeMode pode ficar, mas desativado
-    // Snap por slide (sem rolagem livre)
-    freeMode: false,
-    slidesPerView: 'auto',          // largura dos cards controla o layout
-    slidesPerGroup: 1,              // mover 1 por vez
-    centeredSlides: false,          // não força centralização
-    centeredSlidesBounds: true,     // respeita limites ao iniciar/terminar
-    speed: 320,
-    resistanceRatio: 0.85,
-    threshold: 6,                   // evita toques muito curtos dispararem slide
+  // Inicializa buckets para todos os alvos atuais
+  private ensureAllBuckets(): void {
+    for (const a of this.alvos) this.ensureBucket(a.id);
+  }
 
-    // interação geral
-    allowTouchMove: true,
-    simulateTouch: true,
-    grabCursor: true,
+  ngOnInit(): void {
+    this.ensureAllBuckets();
+  }
 
-    // evitar conflito com drag do CDK quando a carta está “levantada”
-    noSwiping: true,
-    noSwipingClass: 'no-swipe',
-    touchStartPreventDefault: false,
-    passiveListeners: false,
+  ngAfterViewInit(): void {
+    const el = document.querySelector('.mao-swiper') as HTMLElement | null;
+    if (!el) return;
 
-    // entrada extra
-    mousewheel: { forceToAxis: true, sensitivity: 0.6, releaseOnEdges: true },
-    keyboard: { enabled: true },
+    this.swiper = new Swiper(el, {
+      modules: [Mousewheel, Keyboard, FreeMode],
+      freeMode: false,
+      slidesPerView: 'auto',
+      slidesPerGroup: 1,
+      centeredSlides: false,
+      centeredSlidesBounds: true,
+      speed: 320,
+      resistanceRatio: 0.85,
+      threshold: 6,
+      allowTouchMove: true,
+      simulateTouch: true,
+      grabCursor: true,
+      noSwiping: true,
+      noSwipingClass: 'no-swipe',
+      touchStartPreventDefault: false,
+      passiveListeners: false,
+      mousewheel: { forceToAxis: true, sensitivity: 0.6, releaseOnEdges: true },
+      keyboard: { enabled: true },
+      watchSlidesProgress: true,
+      updateOnWindowResize: true,
+      breakpoints: {
+        0:    { spaceBetween: 12 },
+        640:  { spaceBetween: 14 },
+        1024: { spaceBetween: 16 },
+      },
+      observer: true,
+      observeParents: true,
+      observeSlideChildren: true,
+      on: {
+        afterInit: (sw) => sw.update(),
+        resize:    (sw) => sw.update(),
+        observerUpdate: (sw) => sw.update(),
+        slideChange: () => {/* opcional */},
+      },
+    });
 
-    // responsividade
-    watchSlidesProgress: true,
-    updateOnWindowResize: true,
-    breakpoints: {
-      0:    { spaceBetween: 12 },
-      640:  { spaceBetween: 14 },
-      1024: { spaceBetween: 16 },
-    },
-
-    // observar mudanças na mão (DOM)
-    observer: true,
-    observeParents: true,
-    observeSlideChildren: true,
-
-    on: {
-      afterInit: (sw) => sw.update(),
-      resize:    (sw) => sw.update(),
-      observerUpdate: (sw) => sw.update(),
-      // roda a roda do mouse “um por vez”
-      slideChange: () => {/* hook opcional se quiser side-effects */}
-    },
-  });
-
-  queueMicrotask(() => this.swiper?.update());
-}
-
-
+    queueMicrotask(() => this.swiper?.update());
+  }
 
   // Clique na carta: alterna “levantar/abaixar” e habilita drag-to-target
   onCardClick(id: string) {
@@ -162,14 +166,8 @@ ngAfterViewInit(): void {
   // Eventos de arraste (opcional, para UI/estilos)
   onDragStarted(ev: CdkDragStart<Carta>) {
     const id = ev.source.data?.id;
-    // Se o usuário tentou arrastar sem clicar antes, interrompe
     if (!id || !this.canDrag(id)) {
-      // Força cancelamento visual: solta imediatamente
-      // O CDK não possui "cancel()", então apenas não deixamos prosseguir
-      // e mostramos um aviso sutil.
       this.toastInfo('Clique na carta para habilitar o arraste.');
-      // Como fallback, marcamos e já liberamos para esta interação:
-      // (se você NÃO quiser esse comportamento, remova as 2 linhas abaixo)
       this.selectedCardId.set(id ?? null);
     }
     this.draggingCardId.set(id ?? null);
@@ -179,8 +177,8 @@ ngAfterViewInit(): void {
     this.draggingCardId.set(null);
   }
 
-  // Predicate: só aceita se alvo estiver vazio
-  canEnterTarget = (alvoId: string) => () => this.assigned[alvoId].length === 0;
+  // Predicate: só aceita se alvo estiver vazio (1 carta por alvo)
+  canEnterTarget = (alvoId: string) => () => this.ensureBucket(alvoId).length === 0;
 
   // Drop mão -> alvo (somente se a carta dropada for a selecionada)
   async onDropToTarget(event: CdkDragDrop<Carta[]>, alvo: Alvo) {
@@ -190,14 +188,13 @@ ngAfterViewInit(): void {
     const card = event.previousContainer.data[event.previousIndex];
     if (!card) return;
 
-    // Garante regra: precisa ter clicado antes (selecionada) e ser a mesma carta
     if (!this.selectedCardId() || this.selectedCardId() !== card.id) {
       this.toastInfo('Clique na carta antes de arrastar para um alvo.');
       return;
     }
 
-    // Também impede se o alvo já está ocupado
-    if (this.assigned[alvo.id].length > 0) {
+    const bucket = this.ensureBucket(alvo.id);
+    if (bucket.length > 0) {
       this.toastInfo('Este alvo já possui uma carta associada.');
       return;
     }
@@ -231,11 +228,13 @@ ngAfterViewInit(): void {
       0
     );
 
-    // Atualiza sinais/UI
     this.hand.set([...this.hand()]);
-    this.assigned[alvo.id] = [...this.assigned[alvo.id]];
-    this.selectedCardId.set(null);      // deseleciona após associar
-    this.draggingCardId.set(null);      // limpa estado de arraste
+    // Reatribui o array do alvo para disparar detecção de mudanças
+    const updated = [...this.ensureBucket(alvo.id)];
+    this.assigned[alvo.id] = updated;
+
+    this.selectedCardId.set(null);
+    this.draggingCardId.set(null);
     this.swiper?.update();
 
     await Swal.fire({
@@ -255,12 +254,13 @@ ngAfterViewInit(): void {
 
   // Desfazer associação (volta carta pra mão)
   removerDoAlvo(alvoId: string, idx = 0) {
-    const carta = this.assigned[alvoId][idx];
+    const bucket = this.ensureBucket(alvoId);
+    const carta = bucket[idx];
     if (!carta) return;
 
     this.hand.update(arr => [carta, ...arr]);
-    this.assigned[alvoId].splice(idx, 1);
-    this.assigned[alvoId] = [...this.assigned[alvoId]];
+    bucket.splice(idx, 1);
+    this.assigned[alvoId] = [...bucket];
     this.swiper?.update();
   }
 

@@ -1,17 +1,23 @@
 <main class="uno min-h-screen">
   <!-- Header -->
   <section class="max-w-6xl mx-auto px-3 sm:px-4 pt-6 sm:pt-10 pb-4 sm:pb-6">
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
-      <div>
-        <h1 class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-white">
-          Rodada {{ rodadaNumero }} — Votação
+    
+    <section class="max-w-6xl mx-auto px-3 sm:px-4 pt-8 pb-6">
+      <div class="text-center">
+        <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">
+          <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-yellow-500 to-green-600">
+            Rodada {{ rodadaNumero }} — Votação
+          </span>
         </h1>
-        <p class="mt-1 text-slate-200 text-xs sm:text-sm">
+        <p class="mt-2 text-gray-700">
           Você não pode votar em si mesmo. Anonimato:
           <span class="font-semibold text-emerald-300">Ativado</span>
         </p>
       </div>
-
+    </section>
+    
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
+      <div class="md:ml-auto flex flex-col md:flex-row gap-2 sm:gap-3 items-end md:items-center"></div>
       <div class="flex items-stretch gap-2 sm:gap-3">
         <div class="hud-box">
           <div class="hud-label">Código da Sala</div>
@@ -38,30 +44,29 @@
       <ul class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 lg:grid-cols-4">
         <li *ngFor="let a of alvos; trackBy: trackById" class="relative">
           <div
-            class="alvo-drop uno-card alvo flex items-center gap-3"
-            cdkDropList
-            [id]="targetListId(a.id)"
-            [cdkDropListData]="assigned[a.id]"
-            [cdkDropListConnectedTo]="connectedTo()"
-            [cdkDropListEnterPredicate]="canEnterTarget(a.id)"
-            (cdkDropListDropped)="onDropToTarget($event, a)">
+        class="alvo-drop uno-card alvo flex items-center gap-3"
+        cdkDropList
+        [id]="targetListId(a.id)"
+        [cdkDropListData]="assigned[a.id]"
+        [cdkDropListConnectedTo]="connectedTo()"
+        [cdkDropListEnterPredicate]="canEnterTarget(a.id)"
+        (cdkDropListDropped)="onDropToTarget($event, a)">
 
-            <span class="chip" [ngStyle]="{'background': colorHex[a.envelope]}">{{ a.iniciais }}</span>
-            <div class="min-w-0">
-              <div class="font-semibold text-white truncate">{{ a.nome }}</div>
-              <div class="text-xs text-white/70">Envelope: {{ a.envelope }}</div>
-              <div class="mt-1">
-                <div *ngIf="assigned[a.id].length"
-                     class="mt-2 assigned-pill"
-                     [style.borderColor]="colorHex[assigned[a.id][0].cor]">
-                  <span class="pill-dot" [style.background]="colorHex[assigned[a.id][0].cor]"></span>
-                  {{ assigned[a.id][0].texto }}
-                  <button type="button" class="pill-x" title="Remover"
-                          (click)="removerDoAlvo(a.id)">×</button>
-                </div>
-                <div *ngIf="!assigned[a.id].length" class="text-xs text-white/50">Solte aqui</div>
-              </div>
+        <span class="chip" [ngStyle]="{'background': colorHex[a.envelope]}">{{ a.iniciais }}</span>
+        <div class="min-w-0">
+          <div class="font-semibold text-black truncate">{{ a.nome }}</div>
+          <div class="mt-1">
+            <div *ngIf="assigned[a.id].length"
+             class="mt-2 assigned-pill"
+             [style.borderColor]="colorHex[assigned[a.id][0].cor]">
+          <span class="pill-dot" [style.background]="colorHex[assigned[a.id][0].cor]"></span>
+          <span class="text-black">{{ assigned[a.id][0].texto }}</span>
+          <button type="button" class="pill-x text-gray-500" title="Remover"
+              (click)="removerDoAlvo(a.id)">×</button>
             </div>
+            <div *ngIf="!assigned[a.id].length" class="text-s text-gray-500">Solte aqui</div>
+          </div>
+        </div>
           </div>
         </li>
       </ul>
