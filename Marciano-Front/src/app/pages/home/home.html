@@ -57,7 +57,7 @@
               [attr.aria-describedby]="form.controls.name.invalid ? 'name-error' : null"
             />
             @if (form.controls.name.invalid && (form.controls.name.dirty || form.controls.name.touched)) {
-              <p id="name-error" class="mt-1 text-sm text-red-600">Informe um nome com pelo menos 2 caracteres.</p>
+              <p id="name-error" class="mt-1 text-sm text-red-600">Informe um nome com entre 2 e 50 caracteres.</p>
             }
           </div>
 
