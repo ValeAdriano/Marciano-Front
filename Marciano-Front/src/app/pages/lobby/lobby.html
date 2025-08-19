@@ -16,28 +16,36 @@
         <div class="flex items-center justify-between">
           <div>
             <div class="text-sm text-gray-600">Código da Sala</div>
-            <div class="mt-1 text-xl font-semibold tracking-widest text-blue-700">ABC123</div>
+            <div class="mt-1 text-xl font-semibold tracking-widest text-blue-700">{{ roomCode() }}</div>
           </div>
-          <button type="button" disabled aria-disabled="true" title="Apenas visual"
-            class="inline-flex items-center gap-2 rounded-lg bg-blue-600 text-white px-3 py-2 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed">
+          <button type="button" (click)="copyRoomCode()"
+            class="inline-flex items-center gap-2 rounded-lg bg-blue-600 text-white px-3 py-2 text-sm font-medium hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-yellow-400">
             Copiar código
           </button>
         </div>
       </div>
 
-      <!-- Link de convite -->
+      <!-- Seu Perfil (substitui "Convide pessoas com este link") -->
       <div class="bg-white rounded-2xl shadow-card ring-1 ring-black/5 p-4">
-        <div class="text-sm text-gray-600">Convide pessoas com este link</div>
-        <div class="mt-2 flex items-center gap-2">
-          <input disabled
-            value="https://app.exemplo/qualidades/sala/ABC123"
-            class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 disabled:opacity-60"
-          />
-          <button type="button" disabled aria-disabled="true" title="Apenas visual"
-            class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed">
-            Copiar
-          </button>
+
+        <div class="mt-3 flex items-center gap-3">
+          <!-- Avatar com ícone em branco e fundo na cor do envelope -->
+          <span class="inline-flex h-10 w-10 items-center justify-center rounded-full"
+                [style.backgroundColor]="session()?.envelopeHex || '#0067b1'">
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="h-5 w-5 text-white">
+              <path fill="currentColor"
+                    d="M12 12c2.761 0 5-2.686 5-6s-2.239-6-5-6-5 2.686-5 6 2.239 6 5 6zm0 2c-4.418 0-8 2.686-8 6v2h16v-2c0-3.314-3.582-6-8-6z"/>
+            </svg>
+          </span>
+
+          <div class="min-w-0">
+            <div class="font-medium text-gray-900 truncate">
+              {{ session()?.name || '—' }}
+            </div>
+          </div>
         </div>
+
+       
       </div>
     </div>
   </section>
@@ -49,43 +57,33 @@
       <div class="md:col-span-2 bg-white rounded-2xl shadow-card ring-1 ring-black/5 p-6">
         <div class="flex items-center justify-between">
           <h2 class="text-lg font-semibold text-blue-800">Participantes</h2>
-          <span class="text-sm text-gray-600">8 participantes</span>
+          <span class="text-sm text-gray-600">{{ count() }} participante{{ count() === 1 ? '' : 's' }}</span>
         </div>
 
-        <ul class="mt-4 divide-y divide-gray-100">
-          <!-- Exemplo de item -->
-          <li class="py-3 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <span class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-semibold">MS</span>
-              <div>
-                <div class="font-medium text-gray-900">Maria Silva</div>
-                <div class="text-xs text-gray-500">Envelope: Azul</div>
-              </div>
-            </div>
-            <span class="inline-flex items-center rounded-full bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1">Conectado</span>
-          </li>
+        <ul class="mt-4 divide-y divide-gray-300">
+          @for (p of participants(); track p.id) {
+            <li class="py-3 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <!-- Avatar: ícone de perfil com fundo na cor do envelope -->
+                <span class="inline-flex h-9 w-9 items-center justify-center rounded-full"
+                      [style.backgroundColor]="p.envelopeHex">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" class="h-5 w-5 text-white">
+                    <path fill="currentColor"
+                          d="M12 12c2.761 0 5-2.686 5-6s-2.239-6-5-6-5 2.686-5 6 2.239 6 5 6zm0 2c-4.418 0-8 2.686-8 6v2h16v-2c0-3.314-3.582-6-8-6z"/>
+                  </svg>
+                </span>
 
-          <li class="py-3 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <span class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-green-100 text-green-700 font-semibold">JP</span>
-              <div>
-                <div class="font-medium text-gray-900">João Pereira</div>
-                <div class="text-xs text-gray-500">Envelope: Verde</div>
-              </div>
-            </div>
-            <span class="inline-flex items-center rounded-full bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1">Conectado</span>
-          </li>
+                <div>
+                  <div class="font-medium text-gray-900">{{ p.name }}</div>
 
-          <li class="py-3 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <span class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-yellow-100 text-yellow-700 font-semibold">CR</span>
-              <div>
-                <div class="font-medium text-gray-900">Camila Rocha</div>
-                <div class="text-xs text-gray-500">Envelope: Amarelo</div>
+                </div>
               </div>
-            </div>
-            <span class="inline-flex items-center rounded-full bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1">Conectado</span>
-          </li>
+
+              <span [class]="statusClasses(p)">
+                {{ p.status === 'connected' ? 'Conectado' : 'Desconectado' }}
+              </span>
+            </li>
+          }
         </ul>
       </div>
 
@@ -94,7 +92,6 @@
         <h2 class="text-lg font-semibold text-blue-800">Status da Sala</h2>
         <p class="text-sm text-gray-600 mt-1">Etapas da dinâmica</p>
 
-        <!-- Stepper -->
         <ol class="mt-4 space-y-3">
           <li class="flex items-start gap-3">
             <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white text-sm font-semibold">1</span>
@@ -119,7 +116,6 @@
           </li>
         </ol>
 
-        <!-- Ações -->
         <div class="mt-6 space-y-3">
           <a
             routerLink="/rodada"
@@ -133,16 +129,6 @@
             class="w-full inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 px-4 py-2 font-medium disabled:opacity-40 disabled:cursor-not-allowed">
             Sair da Sala
           </button>
-        </div>
-
-        <!-- Regras rápidas -->
-        <div class="mt-6 border-t border-gray-100 pt-4">
-          <h3 class="text-sm font-semibold text-blue-800">Regras rápidas</h3>
-          <ul class="mt-2 space-y-1 text-sm text-gray-600 list-disc list-inside">
-            <li>Participante só entra no lobby após concluir suas seleções.</li>
-            <li>Modo anônimo (se ativado) oculta nomes nas cartas.</li>
-            <li>O facilitador controla o início e o fim da votação.</li>
-          </ul>
         </div>
       </div>
     </div>
