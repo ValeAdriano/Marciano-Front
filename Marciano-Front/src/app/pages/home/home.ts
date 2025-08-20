@@ -91,14 +91,19 @@ export class HomeComponent {
       // Chamada de API + persistência automática no localStorage pelo service
       this.home.joinRoom(roomCode, { name, envelopeHex: envelope }).subscribe({
         next: (session) => {
-          // navega para o lobby; dados já salvos
-          this.router.navigate(['/lobby'], { queryParams: { roomCode: session.roomCode } });
+          // ✅ igual ao front antigo: manda room_id e participant_id
+          this.router.navigate(['/lobby'], {
+            queryParams: {
+              room_id: session.roomCode,          // o código da sala (numérico em string)
+              participant_id: session.participantId, // veio do backend no join
+            },
+          });
         },
-        error: async () => {
+        error: async (err) => {
           await Swal.fire({
             icon: 'error',
             title: 'Falha ao entrar',
-            text: 'Não foi possível entrar na sala. Tente novamente.',
+            text: err?.message || 'Não foi possível entrar na sala.',
             confirmButtonColor: envelope
           });
         },

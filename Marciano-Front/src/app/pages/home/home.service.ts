@@ -1,5 +1,6 @@
 import { Injectable, signal } from '@angular/core';
-import { Observable, of, delay } from 'rxjs';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Observable, map, throwError, catchError } from 'rxjs';
 
 // Tipos
 export interface JoinRoomRequest {
@@ -8,10 +9,16 @@ export interface JoinRoomRequest {
 }
 
 export interface UserSession {
-  roomCode: string;
-  participantId: string;
+  roomCode: string;        // mantém em string para exibir no front
+  participantId: string;   // vem do backend (participant_id)
   name: string;
   envelopeHex: string;
+  token?: string | null;
+}
+
+// Resposta esperada do backend em POST /rooms/{room_id}/join
+interface JoinRoomResponse {
+  participant_id: number | string;
   token?: string;
 }
 
@@ -22,27 +29,50 @@ export class HomeService {
   private readonly _session = signal<UserSession | null>(this.loadFromStorage());
   readonly session = this._session.asReadonly();
 
+  constructor(private http: HttpClient) {}
+
   /**
-   * Fake joinRoom
-   * Simula uma chamada HTTP retornando status ok,
-   * salva a sessão no localStorage.
+   * Faz POST no backend: /rooms/{room_id}/join  { name }
+   * Salva sessão no storage e atualiza o signal.
    */
   joinRoom(roomCode: string, body: JoinRoomRequest): Observable<UserSession> {
-    const session: UserSession = {
-      roomCode: roomCode.toUpperCase(),
-      participantId: crypto.randomUUID(), // gera id fake
-      name: body.name,
-      envelopeHex: body.envelopeHex,
-      token: 'fake-token',
-    };
+    const code = (roomCode ?? '').trim().toUpperCase();
 
-    // salva e atualiza sinal
-    this.saveToStorage(session);
-    this._session.set(session);
-
-    // retorna como se fosse uma API (delay de 400ms para simular rede)
-    return of(session).pipe(delay(400));
+    return this.http
+      .post<{ participant_id: string | number; room_id: number; room_code: string; token?: string }>(
+        `/rooms/join_by_code`,
+        {
+          code,
+          name: body.name,
+          envelope_choice: body.envelopeHex,
+        }
+      )
+      .pipe(
+        map((res) => {
+          if (!res || res.participant_id == null || !res.room_code) {
+            throw new Error('Resposta inválida do servidor');
+          }
+          const session: UserSession = {
+            roomCode: res.room_code,
+            participantId: String(res.participant_id),
+            name: body.name,
+            envelopeHex: body.envelopeHex,
+            token: res.token ?? null,
+          };
+          this.saveToStorage(session);
+          this._session.set(session);
+          return session;
+        }),
+        catchError((err: HttpErrorResponse) => {
+          const detail =
+            (err.error && (err.error.detail || err.error.message)) ||
+            (typeof err.error === 'string' ? err.error : '') ||
+            `Erro ${err.status || ''}`;
+          return throwError(() => new Error(detail));
+        })
+      );
   }
+
 
   getSession(): UserSession | null {
     return this.session();
