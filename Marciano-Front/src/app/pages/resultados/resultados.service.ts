@@ -11,7 +11,7 @@ export interface ParticipantRow {
 
 @Injectable({ providedIn: 'root' })
 export class ResultadosService {
-  /** Paleta (alinha com os tokens do DS) */
+  /** Paleta (tokens do DS) */
   readonly colorHex: Record<Cor, string> = {
     Azul: '#0067b1',
     Amarelo: '#ecc500',
@@ -21,7 +21,17 @@ export class ResultadosService {
     Roxo: '#7c3aed',
   };
 
-  /** Dados fake — substitua por chamada de API quando prontos */
+  /** Mapeamento cor → planeta */
+  readonly planetByColor: Record<Cor, string> = {
+    Roxo: 'Lua',
+    Amarelo: 'Mercúrio',
+    Verde: 'Vênus',
+    Vermelho: 'Marte',
+    Laranja: 'Júpiter',
+    Azul: 'Saturno',
+  };
+
+  /** Dados fake — substitua por API quando prontos */
   private readonly _receivedByColor = signal<Record<Cor, number>>({
     Laranja: 3,
     Verde: 5,
@@ -61,7 +71,7 @@ export class ResultadosService {
     (Object.values(this._receivedByColor()) as number[]).reduce((a, b) => a + b, 0)
   );
 
-  /** Insight por cor dominante */
+  /** Cor dominante */
   readonly topColor = computed<Cor | null>(() => {
     const map = this._receivedByColor();
     let top: Cor | null = null;
@@ -72,7 +82,7 @@ export class ResultadosService {
     return top;
   });
 
-  /** Texto de insight — ajuste conforme taxonomia oficial depois */
+  /** Insight por cor (mantém sua taxonomia, pode ajustar depois) */
   insightFor(color: Cor | null): string {
     if (!color) return 'Sem dados suficientes para gerar um insight.';
     const dict: Record<Cor, string> = {

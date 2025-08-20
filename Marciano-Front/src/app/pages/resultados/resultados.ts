@@ -1,4 +1,3 @@
-// resultados.component.ts
 import {
   Component,
   ChangeDetectionStrategy,
@@ -18,7 +17,7 @@ import { ResultadosService, Cor } from './resultados.service';
 
 @Component({
   selector: 'app-resultados',
-  standalone: true,
+  // standalone é padrão no Angular 20
   imports: [CommonModule, RouterLink],
   templateUrl: './resultados.html',
   styleUrl: './resultados.scss',
@@ -32,28 +31,31 @@ export class ResultadosComponent implements AfterViewInit, OnDestroy {
   // service
   private readonly results = inject(ResultadosService);
 
-  // guarda se a view está pronta (canvas existe)
+  // view pronta
   private readonly viewReady = signal(false);
 
   // disponibilidade dos resultados
   readonly allRoundsFinished = signal<boolean>(true);
 
   // tipo do gráfico
-  readonly chartType = signal<ChartType>('bar'); // 'bar' | 'pie'
+  readonly chartType = signal<ChartType>('bar'); // 'bar' | 'doughnut'
 
   // dados do serviço (signals)
-  readonly dataByColor   = this.results.receivedByColor;
-  readonly total         = this.results.total;
-  readonly participants  = this.results.participants;
-  readonly colorHex      = this.results.colorHex;
+  readonly dataByColor  = this.results.receivedByColor;
+  readonly total        = this.results.total;
+  readonly participants = this.results.participants;
+  readonly colorHex     = this.results.colorHex;
+
+  // mapeamento cor -> planeta (UX)
+  private readonly planetByColor = this.results.planetByColor;
 
   // contagens individuais
-  readonly ctAzul      = computed(() => this.dataByColor().Azul);
-  readonly ctAmarelo   = computed(() => this.dataByColor().Amarelo);
-  readonly ctVerde     = computed(() => this.dataByColor().Verde);
-  readonly ctLaranja   = computed(() => this.dataByColor().Laranja);
-  readonly ctVermelho  = computed(() => this.dataByColor().Vermelho);
-  readonly ctRoxo      = computed(() => this.dataByColor().Roxo);
+  readonly ctAzul     = computed(() => this.dataByColor().Azul);
+  readonly ctAmarelo  = computed(() => this.dataByColor().Amarelo);
+  readonly ctVerde    = computed(() => this.dataByColor().Verde);
+  readonly ctLaranja  = computed(() => this.dataByColor().Laranja);
+  readonly ctVermelho = computed(() => this.dataByColor().Vermelho);
+  readonly ctRoxo     = computed(() => this.dataByColor().Roxo);
 
   // insight
   readonly topColor = this.results.topColor;
@@ -75,13 +77,13 @@ export class ResultadosComponent implements AfterViewInit, OnDestroy {
     const type = this.chartType();     // dependência
     const data = this.dataByColor();   // dependência
 
-    // destrói (qualquer) instância anterior associada ao canvas…
+    // destrói instância anterior associada ao canvas
     const canvas = this.chartEl?.nativeElement;
     if (!canvas) return;
     Chart.getChart(canvas)?.destroy();
     this.chart = null;
 
-    // …e recria no próximo microtask (evita conflitos com layout/altura)
+    // recria no próximo microtask
     queueMicrotask(() => this.renderChart(type, data));
   });
 
@@ -97,7 +99,7 @@ export class ResultadosComponent implements AfterViewInit, OnDestroy {
   setChart(type: ChartType) {
     if (type !== 'bar' && type !== 'doughnut') return;
     if (this.chartType() === type) return;
-    this.chartType.set(type); // o effect acima cuida de destruir e recriar
+    this.chartType.set(type);
   }
 
   // barra empilhada por participante (tabela)
@@ -117,7 +119,20 @@ export class ResultadosComponent implements AfterViewInit, OnDestroy {
     return `linear-gradient(to right, ${stops.join(', ')})`;
   }
 
-  qualidadeLabel(_cor: Cor): string { return '—'; }
+  // aria da barra agregada (acessibilidade)
+  barAria(votesByColor: Record<Cor, number>): string {
+    const parts: string[] = [];
+    for (const c of this.order) {
+      const v = votesByColor[c] || 0;
+      if (v > 0) parts.push(`${this.planetByColor[c]}: ${v}`);
+    }
+    return parts.length ? `Distribuição por planeta — ${parts.join(', ')}` : 'Sem votos';
+  }
+
+  // label de qualidade → planeta
+  qualidadeLabel(cor: Cor): string {
+    return this.planetByColor[cor];
+  }
 
   // -------- Chart.js --------
   private renderChart(type: ChartType, dataset: Record<Cor, number>): void {
@@ -130,16 +145,17 @@ export class ResultadosComponent implements AfterViewInit, OnDestroy {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const labels = this.order;
-    const values = labels.map((c) => dataset[c]);
-    const colors = labels.map((c) => this.colorHex[c]);
+    const labelsColors = this.order;
+    const values = labelsColors.map((c) => dataset[c]);
+    const colors = labelsColors.map((c) => this.colorHex[c]);
+    const planetLabels = labelsColors.map((c) => this.planetByColor[c]); // rótulos exibidos
 
     const config: ChartConfiguration = {
       type,
       data: {
-        labels,
+        labels: planetLabels,
         datasets: [{
-          label: type === 'bar' ? 'Votos por cor' : 'Proporção por cor',
+          label: type === 'bar' ? 'Votos por planeta' : 'Proporção por planeta',
           data: values,
           backgroundColor: colors,
           borderWidth: 0,
@@ -151,18 +167,44 @@ export class ResultadosComponent implements AfterViewInit, OnDestroy {
         maintainAspectRatio: false,
         ...(type === 'bar'
           ? {
-              indexAxis: 'y',
+              indexAxis: 'x' as const,
               scales: {
-                x: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: 'rgba(0,0,0,0.06)' }, title: { display: true, text: 'Votos' } },
-                y: { grid: { display: false }, title: { display: true, text: 'Cores' } },
+                x: {
+                  beginAtZero: true,
+                  ticks: { precision: 0 },
+                  grid: { color: 'rgba(0,0,0,0.06)' },
+                  title: { display: true, text: 'Votos' },
+                },
+                y: {
+                  grid: { display: false },
+                  title: { display: true, text: 'Planetas' },
+                },
               },
-              plugins: { legend: { display: false } },
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    title: (items) => items[0]?.label ?? '',
+                    label: (ctx) => ` ${ctx.formattedValue} voto(s)`,
+                  },
+                },
+              },
               animation: { duration: 250 },
             }
           : {
               plugins: {
                 legend: { position: 'bottom', labels: { usePointStyle: true } },
-                tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${ctx.formattedValue}` } },
+                tooltip: {
+                  callbacks: {
+                    label: (ctx) => {
+                      const colorIndex = ctx.dataIndex;
+                      const cor = labelsColors[colorIndex];
+                      const planeta = planetLabels[colorIndex];
+                      const v = ctx.formattedValue;
+                      return ` ${planeta} (${cor}): ${v}`;
+                    },
+                  },
+                },
               },
               animation: { duration: 250 },
             }),
