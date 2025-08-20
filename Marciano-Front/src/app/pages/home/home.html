@@ -39,7 +39,7 @@
               [attr.aria-describedby]="form.controls.roomCode.invalid ? 'roomCode-error' : null"
             />
             @if (form.controls.roomCode.invalid && (form.controls.roomCode.dirty || form.controls.roomCode.touched)) {
-              <p id="roomCode-error" class="mt-1 text-sm text-red-600">Informe um código válido (3–10 alfanuméricos).</p>
+              <p id="roomCode-error" class="mt-1 text-sm text-red-600">Informe um código válido (6 caracteres alfanuméricos).</p>
             }
           </div>
 

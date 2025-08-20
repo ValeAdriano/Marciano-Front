@@ -32,7 +32,7 @@ export class HomeComponent {
   ];
 
   form = this.fb.nonNullable.group({
-    roomCode: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(10), Validators.pattern(/^[A-Za-z0-9]+$/)]],
+    roomCode: ['', [Validators.required, Validators.minLength(6), Validators.maxLength(6), Validators.pattern(/^[A-Za-z0-9]+$/)]],
     name: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(50)]],
     envelope: ['', [Validators.required]],
   });
