@@ -87,12 +87,12 @@ export class RodadaComponent implements AfterViewInit, OnInit {
 
   // Paleta (alinha com tokens do design system)
   readonly colorHex: Record<Cor, string> = {
-    Azul: '#0067b1',
-    Amarelo: '#ecc500',
-    Verde: '#75b463',
-    Laranja: '#f97316',
-    Vermelho: '#ef4444',
-    Roxo: '#7c3aed',
+    Azul: '#0091ff',
+    Amarelo: '#ffd600',
+    Verde: '#22c55e',
+    Laranja: '#ff8800',
+    Vermelho: '#ff2d2d',
+    Roxo: '#a259ff',
   };
 
   // Swiper
