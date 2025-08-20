@@ -133,7 +133,6 @@ export class ResultadosComponent implements AfterViewInit, OnDestroy {
   qualidadeLabel(cor: Cor): string {
     return this.planetByColor[cor];
   }
-
   // -------- Chart.js --------
   private renderChart(type: ChartType, dataset: Record<Cor, number>): void {
     const canvas = this.chartEl?.nativeElement;
@@ -147,7 +146,8 @@ export class ResultadosComponent implements AfterViewInit, OnDestroy {
 
     const labelsColors = this.order;
     const values = labelsColors.map((c) => dataset[c]);
-    const colors = labelsColors.map((c) => this.colorHex[c]);
+    // Menos viva: aplica transparência nas cores
+    const colors = labelsColors.map((c) => this.colorHex[c] + 'CC'); // 'CC' = ~80% opacidade
     const planetLabels = labelsColors.map((c) => this.planetByColor[c]); // rótulos exibidos
 
     const config: ChartConfiguration = {
@@ -171,13 +171,31 @@ export class ResultadosComponent implements AfterViewInit, OnDestroy {
               scales: {
                 x: {
                   beginAtZero: true,
-                  ticks: { precision: 0 },
+                  ticks: { 
+                    precision: 0,
+                    color: '#696969ff', // mais escuro
+                    font: { size: 16, weight: 'bold' }, // maior e viva
+                  },
                   grid: { color: 'rgba(0,0,0,0.06)' },
-                  title: { display: true, text: 'Votos' },
+                  title: { 
+                    display: true, 
+                    text: 'Votos',
+                    color: '#4b4b4bff', // mais escuro
+                    font: { size: 18, weight: 'bold' }, // maior e viva
+                  },
                 },
                 y: {
+                  ticks: { 
+                    color: '#696969ff', // mais escuro
+                    font: { size: 16, weight: 'bold' }, // maior e viva
+                  },
                   grid: { display: false },
-                  title: { display: true, text: 'Planetas' },
+                  title: { 
+                    display: true, 
+                    text: 'Planetas',
+                    color: '#4b4b4bff', // mais escuro
+                    font: { size: 18, weight: 'bold' }, // maior e viva
+                  },
                 },
               },
               plugins: {
@@ -193,7 +211,14 @@ export class ResultadosComponent implements AfterViewInit, OnDestroy {
             }
           : {
               plugins: {
-                legend: { position: 'bottom', labels: { usePointStyle: true } },
+                legend: { 
+                  position: 'bottom', 
+                  labels: { 
+                    usePointStyle: true,
+                    color: '#696969ff', // mais escuro
+                    font: { size: 16, weight: 'bold' }, // maior e viva
+                  } 
+                },
                 tooltip: {
                   callbacks: {
                     label: (ctx) => {
