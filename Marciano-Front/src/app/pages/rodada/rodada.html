@@ -65,7 +65,7 @@
       </h2>
 
       <ul class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 lg:grid-cols-4">
-        <li *ngFor="let a of alvos; trackBy: trackById" class="relative">
+        <li *ngFor="let a of alvos(); trackBy: trackById" class="relative">
           <div
             class="alvo-drop uno-card alvo flex items-center gap-3"
             cdkDropList

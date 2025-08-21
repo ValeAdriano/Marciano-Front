@@ -1,5 +1,5 @@
 import {
-  Component, computed, signal, WritableSignal, AfterViewInit, OnInit,
+  Component, computed, signal, WritableSignal, AfterViewInit, OnInit, OnDestroy,
   inject, ChangeDetectionStrategy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -8,6 +8,7 @@ import {
   DragDropModule, CdkDragDrop, transferArrayItem, CdkDragStart, CdkDragEnd
 } from '@angular/cdk/drag-drop';
 import Swal from 'sweetalert2';
+import { Subscription } from 'rxjs';
 
 // Swiper core + CSS
 import Swiper from 'swiper';
@@ -16,10 +17,11 @@ import { Mousewheel, Keyboard, FreeMode } from 'swiper/modules';
 
 import { RodadaService } from './rodada.service';
 import { HomeService } from '../home/home.service';
+import { RodadaApiService, RoomStatus, VoteResult, AvailableParticipants, Card } from './rodada-api.service';
 
 type Cor = 'Laranja' | 'Verde' | 'Amarelo' | 'Azul' | 'Vermelho' | 'Roxo';
 
-type Carta = { id: string; cor: Cor; texto: string; };
+type Carta = { id: string; cor: Cor; texto: string; planeta?: string; };
 
 type Alvo = {
   id: string;
@@ -36,10 +38,11 @@ type Alvo = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
 })
-export class RodadaComponent implements AfterViewInit, OnInit {
+export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
   private readonly rodada = inject(RodadaService);
   private readonly home = inject(HomeService);
   private readonly router = inject(Router);
+  readonly api = inject(RodadaApiService);
 
   readonly rodadaNumero = 1;
 
@@ -49,33 +52,51 @@ export class RodadaComponent implements AfterViewInit, OnInit {
   progress = this.rodada.progress;
   session = this.rodada.session;
 
-  // Alvos (participantes de destino) — mocks por enquanto
-  readonly alvos: Alvo[] = [
-    { id: 'joao',    nome: 'João Pereira',   envelope: 'Azul'     },
-    { id: 'maria',   nome: 'Maria Silva',    envelope: 'Verde'    },
-    { id: 'camila',  nome: 'Camila Rocha',   envelope: 'Amarelo'  },
-    { id: 'lucas',   nome: 'Lucas Alves',    envelope: 'Azul'     },
-    { id: 'ana',     nome: 'Ana Costa',      envelope: 'Laranja'  },
-    { id: 'pedro',   nome: 'Pedro Ramos',    envelope: 'Vermelho' },
-    { id: 'juliana', nome: 'Juliana Melo',   envelope: 'Roxo'     },
-    { id: 'felipe',  nome: 'Felipe Souza',   envelope: 'Verde'    },
-  ];
+  // Status da sala
+  private readonly _roomStatus = signal<RoomStatus | null>(null);
+  roomStatus = this._roomStatus.asReadonly();
 
-  // Mão do usuário
+  // Participantes disponíveis
+  private readonly _availableParticipants = signal<AvailableParticipants | null>(null);
+  availableParticipants = this._availableParticipants.asReadonly();
+
+  // Alvos derivados dos participantes disponíveis
+  readonly alvos = computed(() => {
+    const participants = this._availableParticipants();
+    if (!participants) return [];
+    
+    return participants.participants.map(p => ({
+      id: p.id,
+      nome: p.name,
+      envelope: this.getEnvelopeColor(p.envelope_choice)
+    }));
+  });
+
+  // Mão do usuário (cartas fixas do frontend)
   hand: WritableSignal<Carta[]> = signal<Carta[]>([
-    { id: 'lar-1', cor: 'Laranja',  texto: 'Tem pensamento estratégico e visão do todo' },
-    { id: 'lar-2', cor: 'Laranja',  texto: 'É bom em planejar e organizar' },
-    { id: 'ver-1', cor: 'Verde',    texto: 'Preserva a harmonia no ambiente de trabalho' },
-    { id: 'ver-2', cor: 'Verde',    texto: 'Dá grande atenção ao bem estar da pessoa' },
-    { id: 'ama-1', cor: 'Amarelo',  texto: 'É ágil, flexível e aberto a mudanças' },
-    { id: 'ama-2', cor: 'Amarelo',  texto: 'Traz as novas ideias e ajuda a empresa a inovar' },
-    { id: 'az-1',  cor: 'Azul',     texto: 'Ajuda a empresa e as equipes a manter o foco' },
-    { id: 'az-2',  cor: 'Azul',     texto: 'Alinha os temas com profundidade e senso crítico' },
-    { id: 'vermelho-1', cor: 'Vermelho', texto: 'Toma a iniciativa e faz acontecer' },
-    { id: 'vermelho-2', cor: 'Vermelho', texto: 'É prático e focado na ação e nos resultados' },
-    { id: 'roxo-1', cor: 'Roxo',    texto: 'Avalia o passado para melhorar as suas práticas' },
-    { id: 'roxo-2', cor: 'Roxo',    texto: 'Acompanha e monitora ações e resultados' },
+    { id: 'lar-1', cor: 'Laranja',  texto: 'Tem pensamento estratégico e visão do todo', planeta: 'Marte' },
+    { id: 'lar-2', cor: 'Laranja',  texto: 'É bom em planejar e organizar', planeta: 'Marte' },
+    { id: 'ver-1', cor: 'Verde',    texto: 'Preserva a harmonia no ambiente de trabalho', planeta: 'Vênus' },
+    { id: 'ver-2', cor: 'Verde',    texto: 'Dá grande atenção ao bem estar da pessoa', planeta: 'Vênus' },
+    { id: 'ama-1', cor: 'Amarelo',  texto: 'É ágil, flexível e aberto a mudanças', planeta: 'Mercúrio' },
+    { id: 'ama-2', cor: 'Amarelo',  texto: 'Traz as novas ideias e ajuda a empresa a inovar', planeta: 'Mercúrio' },
+    { id: 'az-1',  cor: 'Azul',     texto: 'Ajuda a empresa e as equipes a manter o foco', planeta: 'Saturno' },
+    { id: 'az-2',  cor: 'Azul',     texto: 'Alinha os temas com profundidade e senso crítico', planeta: 'Saturno' },
+    { id: 'vermelho-1', cor: 'Vermelho', texto: 'Toma a iniciativa e faz acontecer', planeta: 'Júpiter' },
+    { id: 'vermelho-2', cor: 'Vermelho', texto: 'É prático e focado na ação e nos resultados', planeta: 'Júpiter' },
+    { id: 'roxo-1', cor: 'Roxo',    texto: 'Avalia o passado para melhorar as suas práticas', planeta: 'Urano' },
+    { id: 'roxo-2', cor: 'Roxo',    texto: 'Acompanha e monitora ações e resultados', planeta: 'Urano' },
   ]);
+
+  // Participante atual
+  private readonly _currentParticipant = signal<string | null>(null);
+  currentParticipant = this._currentParticipant.asReadonly();
+
+  // Controle de submissão
+  isSubmitting = signal(false);
+
+  // Subscriptions
+  private subscriptions: Subscription[] = [];
 
   /** Associações por alvo (máx. 1 carta) */
   assigned: Record<string, Carta[]> = {};
@@ -83,7 +104,7 @@ export class RodadaComponent implements AfterViewInit, OnInit {
   // DnD lists
   readonly handListId = 'handList';
   readonly targetListId = (alvoId: string) => `target_${alvoId}`;
-  connectedTo = computed(() => [this.handListId, ...this.alvos.map(a => this.targetListId(a.id))]);
+  connectedTo = computed(() => [this.handListId, ...this.alvos().map(a => this.targetListId(a.id))]);
 
   // Paleta (alinha com tokens do design system)
   readonly colorHex: Record<Cor, string> = {
@@ -107,8 +128,17 @@ export class RodadaComponent implements AfterViewInit, OnInit {
       this.router.navigateByUrl('/');
       return;
     }
-    this.ensureAllBuckets();
-    this.rodada.init(); // inicia timer e expõe sessão
+
+    // Timer local
+    this.rodada.init();
+
+    // Conecta socket e carrega dados
+    const code = this.roomCode();
+    if (code) {
+      this.api.connectSocket(code);
+      this.setupSocketListeners();
+      this.loadInitialData();
+    }
   }
 
   ngAfterViewInit(): void {
@@ -150,7 +180,12 @@ export class RodadaComponent implements AfterViewInit, OnInit {
     return this.assigned[alvoId];
   }
   private ensureAllBuckets(): void {
-    for (const a of this.alvos) this.ensureBucket(a.id);
+    for (const a of this.alvos()) this.ensureBucket(a.id);
+  }
+
+  ngOnDestroy(): void {
+    this.subscriptions.forEach(sub => sub.unsubscribe());
+    this.swiper?.destroy();
   }
 
   onCardClick(id: string) {
@@ -198,6 +233,7 @@ export class RodadaComponent implements AfterViewInit, OnInit {
           <span style="display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:middle;margin-right:6px;background:${this.colorHex[card.cor]}"></span>
           ${this.escape(card.cor)}
         </p>
+        <p><b>Planeta:</b> 🪐 ${this.escape(card.planeta || 'N/A')}</p>
        </div>`;
 
     const confirm = await Swal.fire({
@@ -212,25 +248,54 @@ export class RodadaComponent implements AfterViewInit, OnInit {
 
     if (!confirm.isConfirmed) return;
 
-    transferArrayItem(event.previousContainer.data, event.container.data, event.previousIndex, 0);
+    // --- API: Enviar voto para o servidor ---
+    try {
+      this.isSubmitting.set(true);
+      const currentParticipantId = this._currentParticipant();
+      if (!currentParticipantId) {
+        this.toastError('Erro: Participante não identificado');
+        return;
+      }
 
-    this.hand.set([...this.hand()]);
-    this.assigned[alvo.id] = [...this.ensureBucket(alvo.id)];
+             const result = await this.api.sendVote({
+         roomCode: this.roomCode(),
+         fromParticipantId: currentParticipantId,
+         toParticipantId: alvo.id,
+         cardColor: card.cor.toLowerCase(),
+         cardDescription: card.texto,
+       });
 
-    this.selectedCardId.set(null);
-    this.draggingCardId.set(null);
-    this.swiper?.update();
+      if (result.ok) {
+        // Sucesso - transferir carta
+        transferArrayItem(event.previousContainer.data, event.container.data, event.previousIndex, 0);
+        this.hand.set([...this.hand()]);
+        this.assigned[alvo.id] = [...this.ensureBucket(alvo.id)];
 
-    await Swal.fire({
-      title: 'Voto registrado',
-      html: 'Aguarde os demais participantes.<br>Esta janela fechará quando a próxima rodada começar.',
-      icon: 'success',
-      allowOutsideClick: false,
-      allowEscapeKey: false,
-      allowEnterKey: false,
-      showConfirmButton: false,
-      didOpen: () => Swal.showLoading(),
-    });
+        this.selectedCardId.set(null);
+        this.draggingCardId.set(null);
+        this.swiper?.update();
+
+        // Recarregar participantes disponíveis
+        await this.loadAvailableParticipants();
+
+        await Swal.fire({
+          title: 'Voto registrado',
+          html: 'Aguarde os demais participantes.<br>Esta janela fechará quando a próxima rodada começar.',
+          icon: 'success',
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          allowEnterKey: false,
+          showConfirmButton: false,
+          didOpen: () => Swal.showLoading(),
+        });
+      } else {
+        this.toastError(`Erro ao registrar voto: ${result.error}`);
+      }
+    } catch (error) {
+      this.toastInfo('Não foi possível registrar no servidor (offline?). Sua seleção será mantida localmente.');
+    } finally {
+      this.isSubmitting.set(false);
+    }
   }
 
   removerDoAlvo(alvoId: string, idx = 0) {
@@ -249,7 +314,169 @@ export class RodadaComponent implements AfterViewInit, OnInit {
   private toastInfo(msg: string) {
     void Swal.fire({ toast: true, position: 'top', icon: 'info', title: msg, timer: 1600, showConfirmButton: false });
   }
+
+  private toastError(msg: string) {
+    void Swal.fire({ toast: true, position: 'top', icon: 'error', title: msg, timer: 3000, showConfirmButton: false });
+  }
+
   private escape(s: string) {
     const d = document.createElement('div'); d.innerText = s; return d.innerHTML;
+  }
+
+  private getEnvelopeColor(envelopeChoice?: string): Cor {
+    const colorMap: { [key: string]: Cor } = {
+      'azul': 'Azul',
+      'amarelo': 'Amarelo',
+      'verde': 'Verde',
+      'laranja': 'Laranja',
+      'vermelho': 'Vermelho',
+      'roxo': 'Roxo'
+    };
+    return envelopeChoice ? colorMap[envelopeChoice.toLowerCase()] || 'Azul' : 'Azul';
+  }
+
+  private async loadInitialData(): Promise<void> {
+    // Primeiro carregar o participante atual (do localStorage)
+    await this.loadCurrentParticipant();
+    
+    // Depois carregar os outros dados que dependem do participante
+    await Promise.all([
+      this.loadAvailableParticipants(),
+      this.loadRoomStatus()
+    ]);
+    this.ensureAllBuckets();
+  }
+
+  private async loadCurrentParticipant(): Promise<void> {
+    // Buscar diretamente do HomeService (localStorage)
+    const session = this.home.getSession();
+    if (session) {
+      this._currentParticipant.set(session.participantId);
+    } else {
+      console.warn('Sessão não encontrada no localStorage');
+    }
+  }
+
+  private async loadAvailableParticipants(): Promise<void> {
+    const code = this.roomCode();
+    const participantId = this._currentParticipant();
+    if (!code || !participantId) return;
+
+    try {
+      const result = await this.api.getAvailableParticipants(code, participantId);
+      if (result.ok) {
+        this._availableParticipants.set(result.data);
+      } else {
+        console.warn('Erro ao carregar participantes disponíveis:', result.error);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar participantes disponíveis:', error);
+    }
+  }
+
+
+
+  private async loadRoomStatus(): Promise<void> {
+    const code = this.roomCode();
+    if (!code) return;
+
+    try {
+      const result = await this.api.getRoomStatus(code);
+      if (result.ok) {
+        this._roomStatus.set(result.data);
+        this.handleStatusChange(result.data);
+      } else {
+        console.warn('Erro ao carregar status da sala:', result.error);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar status da sala:', error);
+    }
+  }
+
+
+
+  private setupSocketListeners(): void {
+    // Escutar eventos de status da sala
+    this.subscriptions.push(
+      this.api.socketEvents$.subscribe(event => {
+        switch (event.type) {
+          case 'room:status':
+            this._roomStatus.set(event.status);
+            this.handleStatusChange(event.status);
+            break;
+          case 'vote:progress':
+            this.handleVoteProgress(event.progress);
+            break;
+          case 'round:finished':
+            this.handleRoundFinished();
+            break;
+          case 'results:ready':
+            this.handleResultsReady();
+            break;
+        }
+      })
+    );
+  }
+
+  private handleStatusChange(status: RoomStatus): void {
+    const currentStatus = status.status;
+    
+    // Se a sala foi finalizada, redirecionar para resultados
+    if (currentStatus === 'finalizado') {
+      this.redirectToResults();
+    }
+  }
+
+  private async redirectToResults(): Promise<void> {
+    // Fechar qualquer modal de SweetAlert que esteja aberto
+    Swal.close();
+
+    await Swal.fire({
+      title: 'Sala Finalizada!',
+      text: 'Redirecionando para os resultados...',
+      icon: 'info',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      allowEnterKey: false,
+      showConfirmButton: false,
+      timer: 2000,
+    });
+    this.router.navigate(['/resultados']);
+  }
+
+  private handleVoteProgress(progress: number): void {
+    // Atualizar progresso da votação
+    console.log('Progresso da votação:', progress);
+  }
+
+  private handleRoundFinished(): void {
+    // Rodada terminou, mostrar mensagem
+    Swal.fire({
+      title: 'Rodada Finalizada!',
+      text: 'Aguarde o próximo passo.',
+      icon: 'info',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      allowEnterKey: false,
+      showConfirmButton: false,
+      timer: 3000,
+    });
+  }
+
+  private handleResultsReady(): void {
+    // Resultados estão prontos, redirecionar
+    Swal.fire({
+      title: 'Resultados Prontos!',
+      text: 'Redirecionando para os resultados...',
+      icon: 'success',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      allowEnterKey: false,
+      showConfirmButton: false,
+      timer: 2000,
+    }).then(() => {
+      // Redirecionar para resultados
+      this.router.navigate(['/resultados']);
+    });
   }
 }

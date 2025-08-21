@@ -24,10 +24,19 @@ export type Participant = {
   envelope_choice?: string;
 };
 
+export type Card = {
+  id: string;
+  name: string;
+  color: string;
+  planeta?: string;
+};
+
 export type ApiResponse<T> = { ok: true; data: T } | { ok: false, error: string };
 
-export type SendSelfVoteIn = {
+export type SendVoteIn = {
   roomCode: string;
+  fromParticipantId: string;
+  toParticipantId: string;
   cardColor: string;
   cardDescription: string;
 };
@@ -52,6 +61,16 @@ export type VoteResult = {
   round_number: number;
 };
 
+export type AvailableParticipants = {
+  participants: Array<{
+    id: string;
+    name: string;
+    envelope_choice?: string;
+  }>;
+  current_round: number;
+  max_rounds: number;
+};
+
 type SocketEventsOut =
   | { type: 'connected'; socketId: string }
   | { type: 'room:joined'; participants: Participant[] }
@@ -62,7 +81,7 @@ type SocketEventsOut =
   | { type: 'room:status'; status: RoomStatus };
 
 @Injectable({ providedIn: 'root' })
-export class RodadaZeroApiService implements OnDestroy {
+export class RodadaApiService implements OnDestroy {
   private readonly http = inject(HttpClient);
   private readonly home = inject(HomeService);
 
@@ -104,37 +123,61 @@ export class RodadaZeroApiService implements OnDestroy {
     }
   }
 
-  async sendSelfVote(input: SendSelfVoteIn): Promise<ApiResponse<VoteResult>> {
-    const { roomCode, cardColor, cardDescription } = input;
-
-    const me = await this.getMeByRoomCode(roomCode);
-    if (!me.ok) {
-      return { ok: false, error: `Não foi possível identificar o usuário na sala (${me.error})` };
+  // ====== Participantes disponíveis para votação ======
+  async getAvailableParticipants(roomCode: string, participantId: string): Promise<ApiResponse<AvailableParticipants>> {
+    try {
+      const obs = this.http.get<AvailableParticipants>(
+        `${environment.apiUrl}/api/rooms/${encodeURIComponent(roomCode)}/available-participants/${encodeURIComponent(participantId)}`,
+        { headers: this.headers() }
+      );
+      const data = await firstValueFrom(obs);
+      return { ok: true, data };
+    } catch (e: any) {
+      return { ok: false, error: e?.message ?? 'getAvailableParticipants failed' };
     }
+  }
 
-    const participantId = me.data.id;
+  // ====== Cartas disponíveis ======
+  async getAllCards(roomCode: string): Promise<ApiResponse<Card[]>> {
+    try {
+      const obs = this.http.get<Card[]>(
+        `${environment.apiUrl}/api/rooms/${encodeURIComponent(roomCode)}/cards`,
+        { headers: this.headers() }
+      );
+      const data = await firstValueFrom(obs);
+      return { ok: true, data };
+    } catch (e: any) {
+      return { ok: false, error: e?.message ?? 'getAllCards failed' };
+    }
+  }
+
+  // ====== Enviar voto ======
+  async sendVote(input: SendVoteIn): Promise<ApiResponse<VoteResult>> {
+    const { roomCode, fromParticipantId, toParticipantId, cardColor, cardDescription } = input;
 
     try {
-      // Garantir que participantId seja um número válido
-      const participantIdNum = parseInt(participantId);
-      if (isNaN(participantIdNum)) {
+      // Garantir que os IDs sejam números válidos
+      const fromParticipantIdNum = parseInt(fromParticipantId);
+      const toParticipantIdNum = parseInt(toParticipantId);
+      
+      if (isNaN(fromParticipantIdNum) || isNaN(toParticipantIdNum)) {
         return { ok: false, error: 'ID do participante inválido' };
       }
 
       console.log('Enviando voto:', {
         room_code: roomCode,
-        from_participant: participantIdNum,
-        to_participant: participantIdNum,
+        from_participant: fromParticipantIdNum,
+        to_participant: toParticipantIdNum,
         card_color: cardColor,
         card_description: cardDescription
       });
 
       const obs = this.http.post<VoteResult>(
         `${environment.apiUrl}/api/rooms/${encodeURIComponent(roomCode)}/vote`,
-        {
+        { 
           room_code: roomCode,
-          from_participant: participantIdNum,
-          to_participant: participantIdNum, // Autoavaliação: mesmo participante
+          from_participant: fromParticipantIdNum,
+          to_participant: toParticipantIdNum,
           card_color: cardColor,
           card_description: cardDescription
         },
@@ -146,7 +189,7 @@ export class RodadaZeroApiService implements OnDestroy {
       return { ok: true, data };
     } catch (e: any) {
       console.error('Erro ao enviar voto:', e);
-      return { ok: false, error: e?.message ?? 'sendSelfVote failed' };
+      return { ok: false, error: e?.message ?? 'sendVote failed' };
     }
   }
 
@@ -180,7 +223,7 @@ export class RodadaZeroApiService implements OnDestroy {
 
     const s = this.socket;
 
-    s.on('connect',    () => { 
+    s.on('connect', () => { 
       this._connected.set(true); 
       this._socketEvents$.next({ type: 'connected', socketId: s.id! }); 
     });
@@ -191,17 +234,17 @@ export class RodadaZeroApiService implements OnDestroy {
       console.error('Erro de conexão WebSocket:', error);
     });
 
-    s.on('room:joined',    (p: { participants: Participant[] }) =>
+    s.on('room:joined', (p: { participants: Participant[] }) =>
       this._socketEvents$.next({ type: 'room:joined', participants: p.participants }));
 
-    s.on('round:started',  (p: { totalSeconds: number }) =>
+    s.on('round:started', (p: { totalSeconds: number }) =>
       this._socketEvents$.next({ type: 'round:started', totalSeconds: p.totalSeconds }));
 
-    s.on('vote:progress',  (p: { progress: number }) =>
+    s.on('vote:progress', (p: { progress: number }) =>
       this._socketEvents$.next({ type: 'vote:progress', progress: p.progress }));
 
     s.on('round:finished', () => this._socketEvents$.next({ type: 'round:finished' }));
-    s.on('results:ready',  () => this._socketEvents$.next({ type: 'results:ready' }));
+    s.on('results:ready', () => this._socketEvents$.next({ type: 'results:ready' }));
     
     s.on('room:status', (status: RoomStatus) => 
       this._socketEvents$.next({ type: 'room:status', status }));

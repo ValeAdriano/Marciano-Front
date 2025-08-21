@@ -173,6 +173,7 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
         switch (event.type) {
           case 'room:status':
             this._roomStatus.set(event.status);
+            this.handleStatusChange(event.status);
             break;
           case 'vote:progress':
             this.handleVoteProgress(event.progress);
@@ -186,6 +187,9 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
         }
       })
     );
+
+    // Configurar polling para verificar mudanças de status (fallback)
+    this.setupStatusPolling();
   }
 
   private async loadRoomStatus(): Promise<void> {
@@ -196,11 +200,56 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
       const result = await this.api.getRoomStatus(code);
       if (result.ok) {
         this._roomStatus.set(result.data);
+        this.handleStatusChange(result.data);
       } else {
         console.warn('Erro ao carregar status da sala:', result.error);
       }
     } catch (error) {
       console.error('Erro ao carregar status da sala:', error);
+    }
+  }
+
+  private handleStatusChange(status: RoomStatus): void {
+    const currentStatus = status.status;
+    
+    // Se não estiver mais na rodada_0, redirecionar para o componente rodada
+    if (currentStatus !== 'rodada_0' && currentStatus !== 'lobby') {
+      this.redirectToNextRound(currentStatus);
+    }
+  }
+
+  private async redirectToNextRound(status: string): Promise<void> {
+    // Fechar qualquer modal de SweetAlert que esteja aberto
+    Swal.close();
+
+    if (status === 'finalizado') {
+      // Se a sala foi finalizada, redirecionar para resultados
+      await Swal.fire({
+        title: 'Sala Finalizada!',
+        text: 'Redirecionando para os resultados...',
+        icon: 'info',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        allowEnterKey: false,
+        showConfirmButton: false,
+        timer: 2000,
+      });
+      this.router.navigate(['/resultados']);
+    } else if (status.startsWith('rodada_')) {
+      // Se mudou para qualquer rodada (rodada_1, rodada_2, etc.), redirecionar para o componente rodada
+      const roundNumber = status.replace('rodada_', '');
+      await Swal.fire({
+        title: 'Próxima Rodada Iniciada!',
+        text: `Redirecionando para a Rodada ${roundNumber}...`,
+        icon: 'success',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        allowEnterKey: false,
+        showConfirmButton: false,
+        timer: 2000,
+      });
+      // Redirecionar para o componente rodada
+      this.router.navigate(['/rodada']);
     }
   }
 
@@ -238,6 +287,33 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
       // Redirecionar para resultados
       this.router.navigate(['/resultados']);
     });
+  }
+
+  private setupStatusPolling(): void {
+    // Verificar status da sala a cada 5 segundos como fallback
+    const pollInterval = setInterval(async () => {
+      const code = this.roomCode();
+      if (!code) return;
+
+      try {
+        const result = await this.api.getRoomStatus(code);
+        if (result.ok) {
+          const currentStatus = this._roomStatus()?.status;
+          const newStatus = result.data.status;
+          
+          // Se o status mudou, atualizar e verificar redirecionamento
+          if (currentStatus !== newStatus) {
+            this._roomStatus.set(result.data);
+            this.handleStatusChange(result.data);
+          }
+        }
+      } catch (error) {
+        console.warn('Erro no polling de status:', error);
+      }
+    }, 5000);
+
+    // Limpar o intervalo quando o componente for destruído
+    this.subscriptions.push(new Subscription(() => clearInterval(pollInterval)));
   }
 
   // Utils
@@ -312,9 +388,16 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
     // --- API: userID vem do back via /rooms/{code}/me ---
     try {
       this.isSubmitting.set(true);
+      
+      const roomCode = this.roomCode();
+      console.log('Dados da sessão:', this.home.getSession());
+      console.log('RoomCode:', roomCode);
+      console.log('Carta selecionada:', card);
+      
       const result = await this.api.sendSelfVote({
-        roomCode: this.roomCode(),
-        cardId: card.id,
+        roomCode: roomCode,
+        cardColor: card.cor.toLowerCase(),
+        cardDescription: card.texto,
       });
 
       if (result.ok) {
