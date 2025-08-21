@@ -31,7 +31,10 @@
             </div>
             <div class="w-full bg-blue-200 rounded-full h-2">
               <div class="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                   [style.width.%]="roomStatus()?.round_progress?.progress_pct ?? 0"></div>
+                   [style.width.%]="getProgressPercentage()"></div>
+            </div>
+            <div class="text-xs text-center mt-1">
+              {{ getProgressPercentage() }}% completo
             </div>
           </div>
         </div>

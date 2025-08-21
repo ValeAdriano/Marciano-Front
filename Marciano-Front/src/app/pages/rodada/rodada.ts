@@ -3,7 +3,7 @@ import {
   inject, ChangeDetectionStrategy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import {
   DragDropModule, CdkDragDrop, transferArrayItem, CdkDragStart, CdkDragEnd
 } from '@angular/cdk/drag-drop';
@@ -32,7 +32,7 @@ type Alvo = {
 @Component({
   selector: 'app-rodada',
   standalone: true,
-  imports: [CommonModule, RouterLink, DragDropModule],
+  imports: [CommonModule, DragDropModule],
   templateUrl: './rodada.html',
   styleUrl: './rodada.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -44,7 +44,11 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
   private readonly router = inject(Router);
   readonly api = inject(RodadaApiService);
 
-  readonly rodadaNumero = 1;
+  // Número da rodada atual (dinâmico do backend)
+  readonly rodadaNumero = computed(() => this._roomStatus()?.current_round || 0);
+
+  // Número total de rodadas (dinâmico do backend)
+  readonly totalRodadas = computed(() => this._roomStatus()?.max_rounds || 0);
 
   // Header (expostos pelo service)
   roomCode = this.rodada.roomCode;
@@ -278,15 +282,16 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
         // Recarregar participantes disponíveis
         await this.loadAvailableParticipants();
 
-        await Swal.fire({
+        // Mostrar SweetAlert que será fechado automaticamente quando o status mudar
+        Swal.fire({
           title: 'Voto registrado',
-          html: 'Aguarde os demais participantes.<br>Esta janela fechará quando a próxima rodada começar.',
+          html: 'Aguarde os demais participantes.<br>Esta janela fechará automaticamente quando a próxima rodada começar.',
           icon: 'success',
           allowOutsideClick: false,
           allowEscapeKey: false,
           allowEnterKey: false,
           showConfirmButton: false,
-          didOpen: () => Swal.showLoading(),
+          timer: undefined, // Sem timer automático
         });
       } else {
         this.toastError(`Erro ao registrar voto: ${result.error}`);
@@ -333,6 +338,77 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
       'roxo': 'Roxo'
     };
     return envelopeChoice ? colorMap[envelopeChoice.toLowerCase()] || 'Azul' : 'Azul';
+  }
+
+  getProgressPercentage(): number {
+    const status = this._roomStatus();
+    if (!status) return 0;
+    
+    // Só mostrar progresso se estiver em uma rodada de votação (rodada_1, rodada_2, etc.)
+    if (!status.status.startsWith('rodada_') || status.status === 'rodada_0') return 0;
+    
+    const progress = status.round_progress;
+    if (!progress) return 0;
+    
+    // Calcular porcentagem baseada na rodada atual
+    const currentVotes = progress.current_votes;
+    const expectedVotes = progress.expected_votes;
+    
+    if (expectedVotes === 0) return 0;
+    
+    // Garantir que a porcentagem não exceda 100%
+    const percentage = Math.min((currentVotes / expectedVotes) * 100, 100);
+    return Math.round(percentage);
+  }
+
+  getOverallProgressPercentage(): number {
+    const status = this._roomStatus();
+    if (!status) return 0;
+    
+    // Calcular progresso geral considerando todas as rodadas
+    const currentRound = status.current_round;
+    const maxRounds = status.max_rounds;
+    
+    if (maxRounds === 0) return 0;
+    
+    // Se estiver na rodada 0 (autoavaliação), considerar como 0%
+    if (currentRound === 0) return 0;
+    
+    // Calcular progresso baseado na rodada atual vs total de rodadas
+    const progress = Math.min((currentRound / maxRounds) * 100, 100);
+    return Math.round(progress);
+  }
+
+  getStatusDisplay(status: string | undefined): string {
+    if (!status) return 'Carregando...';
+    
+    const statusMap: { [key: string]: string } = {
+      'lobby': '🔄 Lobby',
+      'rodada_0': '🎯 Rodada 0 - Autoavaliação',
+      'rodada_1': '🎯 Rodada 1 - Votação',
+      'rodada_2': '🎯 Rodada 2 - Votação',
+      'rodada_3': '🎯 Rodada 3 - Votação',
+      'rodada_4': '🎯 Rodada 4 - Votação',
+      'rodada_5': '🎯 Rodada 5 - Votação',
+      'rodada_6': '🎯 Rodada 6 - Votação',
+      'rodada_7': '🎯 Rodada 7 - Votação',
+      'rodada_8': '🎯 Rodada 8 - Votação',
+      'rodada_9': '🎯 Rodada 9 - Votação',
+      'rodada_10': '🎯 Rodada 10 - Votação',
+      'finalizado': '🏁 Finalizado'
+    };
+    
+    // Se for uma rodada genérica (rodada_X), usar o padrão
+    if (status.startsWith('rodada_')) {
+      const rodadaNum = status.replace('rodada_', '');
+      if (rodadaNum === '0') {
+        return '🎯 Rodada 0 - Autoavaliação';
+      } else {
+        return `🎯 Rodada ${rodadaNum} - Votação`;
+      }
+    }
+    
+    return statusMap[status] || status;
   }
 
   private async loadInitialData(): Promise<void> {
@@ -421,10 +497,16 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
   private handleStatusChange(status: RoomStatus): void {
     const currentStatus = status.status;
     
-    // Se a sala foi finalizada, redirecionar para resultados
-    if (currentStatus === 'finalizado') {
-      this.redirectToResults();
-    }
+    // Fechar TODOS os modais de SweetAlert que estejam abertos
+    Swal.close();
+    
+    // Aguardar um pouco para garantir que o SweetAlert foi fechado
+    setTimeout(() => {
+      // Se a sala foi finalizada, redirecionar para resultados
+      if (currentStatus === 'finalizado') {
+        this.redirectToResults();
+      }
+    }, 100);
   }
 
   private async redirectToResults(): Promise<void> {
@@ -441,7 +523,15 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
       showConfirmButton: false,
       timer: 2000,
     });
-    this.router.navigate(['/resultados']);
+    
+    // Redirecionar para resultados com parâmetros corretos
+    const session = this.home.getSession();
+    if (session) {
+      this.router.navigate(['/resultados', session.roomCode, session.participantId]);
+    } else {
+      console.error('Sessão não encontrada para redirecionamento');
+      this.router.navigate(['/']);
+    }
   }
 
   private handleVoteProgress(progress: number): void {
@@ -450,6 +540,9 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   private handleRoundFinished(): void {
+    // Fechar qualquer SweetAlert anterior antes de mostrar o novo
+    Swal.close();
+    
     // Rodada terminou, mostrar mensagem
     Swal.fire({
       title: 'Rodada Finalizada!',
@@ -464,6 +557,9 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   private handleResultsReady(): void {
+    // Fechar qualquer SweetAlert anterior antes de mostrar o novo
+    Swal.close();
+    
     // Resultados estão prontos, redirecionar
     Swal.fire({
       title: 'Resultados Prontos!',
@@ -475,8 +571,14 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
       showConfirmButton: false,
       timer: 2000,
     }).then(() => {
-      // Redirecionar para resultados
-      this.router.navigate(['/resultados']);
+      // Redirecionar para resultados com parâmetros corretos
+      const session = this.home.getSession();
+      if (session) {
+        this.router.navigate(['/resultados', session.roomCode, session.participantId]);
+      } else {
+        console.error('Sessão não encontrada para redirecionamento');
+        this.router.navigate(['/']);
+      }
     });
   }
 }

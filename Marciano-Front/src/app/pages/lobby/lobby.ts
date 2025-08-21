@@ -67,6 +67,28 @@ export class LobbyComponent implements OnInit, OnDestroy {
     // Cleanup automático via service
   }
 
+  // Calcula a porcentagem de progresso da votação (máximo 100%)
+  getProgressPercentage(): number {
+    const status = this.roomStatus();
+    if (!status) return 0;
+    
+    // Só mostrar progresso se estiver em uma rodada ativa
+    if (status.status === 'lobby' || status.status === 'finalizado') return 0;
+    
+    const progress = status.round_progress;
+    if (!progress) return 0;
+    
+    // Calcular porcentagem baseada na rodada atual
+    const currentVotes = progress.current_votes;
+    const expectedVotes = progress.expected_votes;
+    
+    if (expectedVotes === 0) return 0;
+    
+    // Garantir que a porcentagem não exceda 100%
+    const percentage = Math.min((currentVotes / expectedVotes) * 100, 100);
+    return Math.round(percentage);
+  }
+
   // Exibe o status da rodada de forma amigável
   getStatusDisplay(status: string | undefined): string {
     if (!status) return 'Carregando...';
@@ -76,8 +98,27 @@ export class LobbyComponent implements OnInit, OnDestroy {
       'rodada_0': '🎯 Rodada 0 - Autoavaliação',
       'rodada_1': '🎯 Rodada 1 - Votação',
       'rodada_2': '🎯 Rodada 2 - Votação',
+      'rodada_3': '🎯 Rodada 3 - Votação',
+      'rodada_4': '🎯 Rodada 4 - Votação',
+      'rodada_5': '🎯 Rodada 5 - Votação',
+      'rodada_6': '🎯 Rodada 6 - Votação',
+      'rodada_7': '🎯 Rodada 7 - Votação',
+      'rodada_8': '🎯 Rodada 8 - Votação',
+      'rodada_9': '🎯 Rodada 9 - Votação',
+      'rodada_10': '🎯 Rodada 10 - Votação',
       'finalizado': '🏁 Jogo Finalizado'
     };
+    
+    // Se for uma rodada genérica (rodada_X), usar o padrão
+    if (status.startsWith('rodada_')) {
+      const rodadaNum = status.replace('rodada_', '');
+      if (rodadaNum === '0') {
+        return '🎯 Rodada 0 - Autoavaliação';
+      } else {
+        return `🎯 Rodada ${rodadaNum} - Votação`;
+      }
+    }
+    
     return statusMap[status] || status;
   }
 
@@ -90,7 +131,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
   // Verifica se deve mostrar mensagem de redirecionamento
   shouldShowRedirectMessage(): boolean {
     const status = this.roomStatus();
-    return status?.status !== 'lobby' && status?.status !== undefined;
+    // Só mostrar mensagem se estiver em uma rodada ativa (não lobby e não finalizado)
+    return status?.status !== 'lobby' && status?.status !== 'finalizado' && status?.status !== undefined;
   }
 
   // botão: copiar código da sala

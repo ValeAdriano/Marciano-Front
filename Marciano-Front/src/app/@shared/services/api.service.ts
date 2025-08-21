@@ -10,7 +10,8 @@ import {
   CreateRoomRequest, 
   JoinRoomRequest, 
   Participant,
-  Round
+  Round,
+  RoomResults
 } from '../types/api.types';
 
 @Injectable({
@@ -202,5 +203,27 @@ export class ApiService {
   // Obter ranking geral
   getGlobalRanking(): Observable<any[]> {
     return this.get<any[]>('/ranking/global');
+  }
+
+  // ===== ENDPOINTS PARA A NOVA API DE RESULTADOS =====
+  
+  // Obter resultados de todos os participantes de uma sala por ID
+  getRoomResultsById(roomId: number): Observable<RoomResults> {
+    return this.getRoomResultsDirect(`/api/rooms/results/${roomId}/all`);
+  }
+
+  // Obter resultados de todos os participantes de uma sala por código
+  getRoomResultsByCode(roomCode: string): Observable<RoomResults> {
+    return this.getRoomResultsDirect(`/api/rooms/results/${roomCode}/all`);
+  }
+
+  // Método específico para a API de resultados que retorna dados diretamente (sem wrapper ApiResponse)
+  private getRoomResultsDirect(endpoint: string): Observable<RoomResults> {
+    const url = `${this.baseUrl}${endpoint}`;
+    return this.http.get<RoomResults>(url, { 
+      headers: this.getHeaders()
+    }).pipe(
+      catchError(this.handleError)
+    );
   }
 }

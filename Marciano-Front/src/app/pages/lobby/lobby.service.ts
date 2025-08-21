@@ -362,6 +362,13 @@ export class LobbyService implements OnDestroy {
   private checkAndRedirect(roomStatus: RoomStatus): void {
     console.log('🔍 Verificando status da rodada:', roomStatus.status);
     
+    // Verifica se a rodada atual é maior que o total de rodadas
+    if (roomStatus.current_round > roomStatus.max_rounds) {
+      console.log('🏁 Todas as rodadas foram concluídas, redirecionando para Resultados...');
+      this.redirectToResults();
+      return;
+    }
+    
     switch (roomStatus.status) {
       case 'rodada_0':
         console.log('🎯 Redirecionando para Rodada Zero...');
@@ -377,11 +384,24 @@ export class LobbyService implements OnDestroy {
         break;
       case 'finalizado':
         console.log('🏁 Redirecionando para Resultados...');
-        this.router.navigate(['/resultados']);
+        this.redirectToResults();
         break;
       default:
         console.log('🔄 Mantendo no lobby...');
         break;
+    }
+  }
+
+  /**
+   * Redireciona para a tela de resultados com os parâmetros corretos
+   */
+  private redirectToResults(): void {
+    const session = this.home.getSession();
+    if (session) {
+      this.router.navigate(['/resultados', session.roomCode, session.participantId]);
+    } else {
+      console.error('Sessão não encontrada para redirecionamento');
+      this.router.navigate(['/']);
     }
   }
 

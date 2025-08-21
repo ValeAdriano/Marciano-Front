@@ -212,6 +212,9 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
   private handleStatusChange(status: RoomStatus): void {
     const currentStatus = status.status;
     
+    // Fechar qualquer modal de SweetAlert que esteja aberto
+    Swal.close();
+    
     // Se não estiver mais na rodada_0, redirecionar para o componente rodada
     if (currentStatus !== 'rodada_0' && currentStatus !== 'lobby') {
       this.redirectToNextRound(currentStatus);
@@ -234,7 +237,15 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
         showConfirmButton: false,
         timer: 2000,
       });
-      this.router.navigate(['/resultados']);
+      
+      // Redirecionar para resultados com parâmetros corretos
+      const session = this.home.getSession();
+      if (session) {
+        this.router.navigate(['/resultados', session.roomCode, session.participantId]);
+      } else {
+        console.error('Sessão não encontrada para redirecionamento');
+        this.router.navigate(['/']);
+      }
     } else if (status.startsWith('rodada_')) {
       // Se mudou para qualquer rodada (rodada_1, rodada_2, etc.), redirecionar para o componente rodada
       const roundNumber = status.replace('rodada_', '');
@@ -284,8 +295,14 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
       showConfirmButton: false,
       timer: 2000,
     }).then(() => {
-      // Redirecionar para resultados
-      this.router.navigate(['/resultados']);
+      // Redirecionar para resultados com parâmetros corretos
+      const session = this.home.getSession();
+      if (session) {
+        this.router.navigate(['/resultados', session.roomCode, session.participantId]);
+      } else {
+        console.error('Sessão não encontrada para redirecionamento');
+        this.router.navigate(['/']);
+      }
     });
   }
 
@@ -452,6 +469,27 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
 
   private escape(s: string) {
     const d = document.createElement('div'); d.innerText = s; return d.innerHTML;
+  }
+
+  getProgressPercentage(): number {
+    const status = this._roomStatus();
+    if (!status) return 0;
+    
+    // Só mostrar progresso se estiver na rodada_0 (autoavaliação)
+    if (status.status !== 'rodada_0') return 0;
+    
+    const progress = status.round_progress;
+    if (!progress) return 0;
+    
+    // Calcular porcentagem baseada na rodada atual
+    const currentVotes = progress.current_votes;
+    const expectedVotes = progress.expected_votes;
+    
+    if (expectedVotes === 0) return 0;
+    
+    // Garantir que a porcentagem não exceda 100%
+    const percentage = Math.min((currentVotes / expectedVotes) * 100, 100);
+    return Math.round(percentage);
   }
 
   getStatusDisplay(status: string | undefined): string {

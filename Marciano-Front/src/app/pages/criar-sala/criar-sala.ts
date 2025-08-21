@@ -375,6 +375,29 @@ export class CriarSalaComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Calcula a porcentagem de progresso da votação (máximo 100%)
+   */
+  getProgressPercentage(roomCode: string): number {
+    const status = this.getRoomStatus(roomCode);
+    if (!status) return 0;
+    
+    // Só mostrar progresso se estiver em uma rodada ativa
+    if (status.status === 'lobby' || status.status === 'finalizado') return 0;
+    
+    if (!status.round_progress) return 0;
+    
+    // Calcular porcentagem baseada na rodada atual
+    const currentVotes = status.round_progress.current_votes;
+    const expectedVotes = status.round_progress.expected_votes;
+    
+    if (expectedVotes === 0) return 0;
+    
+    // Garantir que a porcentagem não exceda 100%
+    const percentage = Math.min((currentVotes / expectedVotes) * 100, 100);
+    return Math.round(percentage);
+  }
+
+  /**
    * Obtém a cor do badge de status
    */
   getStatusBadgeColor(status: string | undefined): string {

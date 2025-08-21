@@ -133,3 +133,33 @@ export enum RoundStatus {
   ACTIVE = 'active',
   FINISHED = 'finished'
 }
+
+// Interfaces para a nova API de resultados
+export interface RoomResults {
+  room_id: number;
+  room_code: string;
+  room_title: string;
+  total_participants: number;
+  participants_results: ParticipantResult[];
+}
+
+export interface ParticipantResult {
+  participant_id: number;
+  name: string;
+  envelope_choice: string;
+  total_votes: number;
+  results_by_color: ColorResult[];
+  detailed_votes: DetailedVote[];
+}
+
+export interface ColorResult {
+  color: string;
+  planet: string;
+  count: number;
+}
+
+export interface DetailedVote {
+  from_name: string;
+  card_color: string;
+  card_description: string;
+}

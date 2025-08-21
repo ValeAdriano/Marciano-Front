@@ -12,6 +12,6 @@ export const routes: Routes = [
   { path: 'lobby', component: LobbyComponent },
   { path: 'rodada-zero', component: RodadaZeroComponent },
   { path: 'rodada', component: RodadaComponent },
-  { path: 'resultados', component: ResultadosComponent },
+  { path: 'resultados/:roomCode/:participantId', component: ResultadosComponent },
   { path: 'criar-sala', component: CriarSalaComponent }
 ];

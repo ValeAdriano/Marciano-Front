@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { takeUntil, Subject } from 'rxjs';
 import { SocketService } from './socket.service';
 import { ApiService } from './api.service';
+import { HomeService } from '../../pages/home/home.service';
 import { 
   Room, 
   Participant, 
@@ -28,6 +29,7 @@ export class GameStateService implements OnDestroy {
   private readonly router = inject(Router);
   private readonly socket = inject(SocketService);
   private readonly api = inject(ApiService);
+  private readonly home = inject(HomeService);
   private readonly destroy$ = new Subject<void>();
 
   // Estado global do jogo
@@ -92,8 +94,8 @@ export class GameStateService implements OnDestroy {
           gameStatus: 'finished'
         });
         
-        // Navega para a página de resultados
-        this.router.navigate(['/resultados']);
+        // Navega para a página de resultados com parâmetros corretos
+        this.redirectToResults();
       });
 
     // Quando um participante marca como pronto
@@ -226,5 +228,18 @@ export class GameStateService implements OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  /**
+   * Redireciona para a tela de resultados com os parâmetros corretos
+   */
+  private redirectToResults(): void {
+    const session = this.home.getSession();
+    if (session) {
+      this.router.navigate(['/resultados', session.roomCode, session.participantId]);
+    } else {
+      console.error('Sessão não encontrada para redirecionamento');
+      this.router.navigate(['/']);
+    }
   }
 }
