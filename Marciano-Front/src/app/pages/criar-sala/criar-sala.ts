@@ -1,10 +1,12 @@
-import { Component, OnInit, OnDestroy, signal, computed, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, computed, inject, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { takeUntil, Subject } from 'rxjs';
-import { CriarSalaService, CreateRoomRequest, Room, RoomReport, RoomStatus } from './criar-sala.service';
+import { CriarSalaService, CreateRoomRequest, Room, RoomReport, RoomStatus, RoomResults, ColorResult } from './criar-sala.service';
 import Swal from 'sweetalert2';
+import Chart from 'chart.js/auto';
+import jsPDF from 'jspdf';
 
 @Component({
   selector: 'app-criar-sala',
@@ -13,7 +15,9 @@ import Swal from 'sweetalert2';
   templateUrl: './criar-sala.html',
   styleUrls: ['./criar-sala.scss']
 })
-export class CriarSalaComponent implements OnInit, OnDestroy {
+export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
+  @ViewChild('resultsChartCanvas', { static: false }) resultsChartCanvas!: ElementRef<HTMLCanvasElement>;
+  
   private readonly destroy$ = new Subject<void>();
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
@@ -34,6 +38,11 @@ export class CriarSalaComponent implements OnInit, OnDestroy {
   readonly loadingStatuses = signal<Set<string>>(new Set());
   readonly expandedRooms = signal<Set<string>>(new Set());
 
+  // Modal de resultados
+  readonly showResultsModal = signal<boolean>(false);
+  readonly currentResults = signal<RoomResults | null>(null);
+  readonly loadingResults = signal<boolean>(false);
+  private resultsChart: Chart | null = null;
 
 
   // Computed values
@@ -45,9 +54,18 @@ export class CriarSalaComponent implements OnInit, OnDestroy {
     this.loadReports(); // Carrega relatórios existentes
   }
 
+  ngAfterViewInit(): void {
+    // Inicialização após a view estar pronta
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    
+    // Destruir gráfico se existir
+    if (this.resultsChart) {
+      this.resultsChart.destroy();
+    }
   }
 
   /**
@@ -1106,6 +1124,625 @@ export class CriarSalaComponent implements OnInit, OnDestroy {
    */
   trackById(index: number, item: any): string {
     return item.id || index;
+  }
+
+  /**
+   * Abre os resultados de uma sala específica
+   */
+  openRoomResults(roomCode: string): void {
+    // Primeiro verifica se a sala tem resultados disponíveis
+    this.criarSalaService.getRoomResults(roomCode)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (results: RoomResults) => {
+          // Se tem resultados, abre a modal
+          if (results && results.participants_results && results.participants_results.length > 0) {
+            this.openResultsModal(results);
+          } else {
+            // Se não tem resultados, mostra mensagem
+            Swal.fire({
+              icon: 'info',
+              title: 'Resultados Indisponíveis',
+              text: 'Esta sala ainda não possui resultados disponíveis. Os resultados aparecem após a finalização das rodadas.',
+              confirmButtonText: 'Entendi',
+              confirmButtonColor: '#3085d6'
+            });
+          }
+        },
+        error: (error: any) => {
+          console.error('Erro ao verificar resultados:', error);
+          
+          // Se der erro, tenta abrir a modal mesmo assim
+          Swal.fire({
+            title: 'Ver Resultados',
+            text: `Deseja visualizar os resultados da sala ${roomCode}?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Sim, Ver Resultados',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#6c757d'
+          }).then((result) => {
+            if (result.isConfirmed) {
+              // Tenta buscar os resultados novamente
+              this.loadRoomResultsForModal(roomCode);
+            }
+          });
+        }
+      });
+  }
+
+  /**
+   * Abre a modal de resultados
+   */
+  private openResultsModal(results: RoomResults): void {
+    this.currentResults.set(results);
+    this.showResultsModal.set(true);
+    
+    // Aguarda um pouco para a modal renderizar antes de criar o gráfico
+    setTimeout(() => {
+      this.createResultsChart();
+    }, 100);
+  }
+
+  /**
+   * Carrega resultados para a modal
+   */
+  private loadRoomResultsForModal(roomCode: string): void {
+    this.loadingResults.set(true);
+    
+    this.criarSalaService.getRoomResults(roomCode)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (results: RoomResults) => {
+          this.loadingResults.set(false);
+          this.openResultsModal(results);
+        },
+        error: (error: any) => {
+          console.error('Erro ao carregar resultados:', error);
+          this.loadingResults.set(false);
+          
+          Swal.fire({
+            icon: 'error',
+            title: 'Erro ao Carregar Resultados',
+            text: 'Não foi possível carregar os resultados da sala. Tente novamente.',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#d33'
+          });
+        }
+      });
+  }
+
+  /**
+   * Fecha a modal de resultados
+   */
+  closeResultsModal(): void {
+    this.showResultsModal.set(false);
+    this.currentResults.set(null);
+    
+    // Destruir gráfico
+    if (this.resultsChart) {
+      this.resultsChart.destroy();
+      this.resultsChart = null;
+    }
+  }
+
+  /**
+   * Cria o gráfico de resultados
+   */
+  private createResultsChart(): void {
+    if (!this.resultsChartCanvas || !this.currentResults()) return;
+
+    const ctx = this.resultsChartCanvas.nativeElement.getContext('2d');
+    if (!ctx) return;
+
+    // Destruir gráfico anterior se existir
+    if (this.resultsChart) {
+      this.resultsChart.destroy();
+    }
+
+    const results = this.currentResults()!;
+    const aggregatedResults = this.aggregateResultsByColor(results);
+
+    this.resultsChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: aggregatedResults.map(r => r.color),
+        datasets: [{
+          label: 'Total de Votos',
+          data: aggregatedResults.map(r => r.totalCount),
+          backgroundColor: [
+            '#8B5CF6', // Roxo
+            '#EAB308', // Amarelo
+            '#22C55E', // Verde
+            '#EF4444', // Vermelho
+            '#F97316', // Laranja
+            '#3B82F6'  // Azul
+          ],
+          borderColor: [
+            '#7C3AED', // Roxo
+            '#CA8A04', // Amarelo
+            '#16A34A', // Verde
+            '#DC2626', // Vermelho
+            '#EA580C', // Laranja
+            '#2563EB'  // Azul
+          ],
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          title: {
+            display: true,
+            text: `Resumo de Votos - ${results.room_title}`,
+            font: {
+              size: 16,
+              weight: 'bold'
+            }
+          },
+          legend: {
+            display: false
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              stepSize: 1
+            }
+          }
+        }
+      }
+    });
+  }
+
+  /**
+   * Agrega resultados por cor
+   */
+  private aggregateResultsByColor(results: RoomResults): Array<{color: string, totalCount: number}> {
+    const colorMap = new Map<string, number>();
+    
+    // Inicializar contadores para todas as cores
+    const allColors = ['Roxo', 'Amarelo', 'Verde', 'Vermelho', 'Laranja', 'Azul'];
+    allColors.forEach(color => colorMap.set(color, 0));
+    
+    // Somar votos de todos os participantes
+    results.participants_results.forEach(participant => {
+      participant.results_by_color.forEach(colorResult => {
+        const currentCount = colorMap.get(colorResult.color) || 0;
+        colorMap.set(colorResult.color, currentCount + colorResult.count);
+      });
+    });
+    
+    // Converter para array e ordenar por total de votos
+    return Array.from(colorMap.entries())
+      .map(([color, totalCount]) => ({ color, totalCount }))
+      .sort((a, b) => b.totalCount - a.totalCount);
+  }
+
+  /**
+   * Baixa o relatório em formato PDF
+   */
+  downloadResultsReport(): void {
+    const results = this.currentResults();
+    if (!results) return;
+
+    try {
+      // Capturar o gráfico como imagem antes de gerar o PDF
+      this.captureChartAsImage().then((chartImageData) => {
+        this.generatePDFWithChart(results, chartImageData);
+      }).catch((error) => {
+        console.error('Erro ao capturar gráfico:', error);
+        // Se não conseguir capturar o gráfico, gera PDF sem ele
+        this.generatePDFWithChart(results, null);
+      });
+      
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      
+      Swal.fire({
+        icon: 'error',
+        title: 'Erro ao Gerar PDF',
+        text: 'Não foi possível gerar o relatório em PDF. Tente novamente.',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#d33'
+      });
+    }
+  }
+
+  /**
+   * Captura o gráfico como imagem
+   */
+  private async captureChartAsImage(): Promise<string | null> {
+    if (!this.resultsChart || !this.resultsChartCanvas) {
+      return null;
+    }
+
+    try {
+      // Capturar o canvas como imagem
+      const canvas = this.resultsChartCanvas.nativeElement;
+      const imageData = canvas.toDataURL('image/png', 1.0);
+      return imageData;
+    } catch (error) {
+      console.error('Erro ao capturar gráfico:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Gera o PDF com o gráfico incluído
+   */
+  private generatePDFWithChart(results: RoomResults, chartImageData: string | null): void {
+    try {
+      // Criar novo documento PDF
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      // Configurações de fonte
+      pdf.setFont('helvetica');
+      
+      // Cores para o PDF (definidas como tuples para evitar erros de TypeScript)
+      const primaryColor: [number, number, number] = [59, 130, 246]; // Azul
+      const secondaryColor: [number, number, number] = [107, 114, 128]; // Cinza
+      const accentColor: [number, number, number] = [34, 197, 94]; // Verde
+      
+      // Título principal
+      pdf.setFontSize(24);
+      pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      pdf.text('📊 Relatório de Resultados', 20, 30);
+      
+      // Informações da sala
+      pdf.setFontSize(16);
+      pdf.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+      pdf.text(`Sala: ${results.room_title}`, 20, 45);
+      pdf.text(`Código: ${results.room_code}`, 20, 55);
+      pdf.text(`Participantes: ${results.total_participants}`, 20, 65);
+      pdf.text(`Data: ${this.getCurrentDate()}`, 20, 75);
+      
+      // Linha separadora
+      pdf.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      pdf.setLineWidth(0.5);
+      pdf.line(20, 85, 190, 85);
+      
+      // Gráfico de resultados (se disponível)
+      if (chartImageData) {
+        pdf.setFontSize(18);
+        pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        pdf.text('📈 Gráfico de Resultados', 20, 100);
+        
+        // Adicionar a imagem do gráfico
+        try {
+          // Calcular dimensões para o gráfico (largura máxima 170mm, altura proporcional)
+          const maxWidth = 170;
+          const maxHeight = 80;
+          
+          // Adicionar imagem do gráfico
+          pdf.addImage(chartImageData, 'PNG', 20, 110, maxWidth, maxHeight);
+          
+          // Posição Y após o gráfico
+          let yPosition = 110 + maxHeight + 20;
+          
+          // Resumo por cor após o gráfico
+          pdf.setFontSize(18);
+          pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+          pdf.text('🎨 Resumo de Votos por Cor', 20, yPosition);
+          
+          yPosition += 15;
+          
+          const aggregatedResults = this.aggregateResultsByColor(results);
+          
+          aggregatedResults.forEach((colorResult, index) => {
+            if (yPosition > 250) {
+              pdf.addPage();
+              yPosition = 20;
+            }
+            
+            pdf.setFontSize(12);
+            pdf.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+            pdf.text(`${colorResult.color}:`, 25, yPosition);
+            
+            pdf.setFontSize(14);
+            pdf.setTextColor(accentColor[0], accentColor[1], accentColor[2]);
+            pdf.text(`${colorResult.totalCount} votos`, 120, yPosition);
+            
+            yPosition += 8;
+          });
+          
+        } catch (imageError) {
+          console.error('Erro ao adicionar gráfico ao PDF:', imageError);
+          // Se der erro na imagem, continua sem ela
+          let yPosition = 100;
+          
+          // Resumo por cor
+          pdf.setFontSize(18);
+          pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+          pdf.text('🎨 Resumo de Votos por Cor', 20, yPosition);
+          
+          yPosition += 15;
+          
+          const aggregatedResults = this.aggregateResultsByColor(results);
+          
+          aggregatedResults.forEach((colorResult, index) => {
+            if (yPosition > 250) {
+              pdf.addPage();
+              yPosition = 20;
+            }
+            
+            pdf.setFontSize(12);
+            pdf.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+            pdf.text(`${colorResult.color}:`, 25, yPosition);
+            
+            pdf.setFontSize(14);
+            pdf.setTextColor(accentColor[0], accentColor[1], accentColor[2]);
+            pdf.text(`${colorResult.totalCount} votos`, 120, yPosition);
+            
+            yPosition += 8;
+          });
+        }
+      } else {
+        // Se não tiver gráfico, mostra apenas o resumo por cor
+        let yPosition = 100;
+        
+        // Resumo por cor
+        pdf.setFontSize(18);
+        pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        pdf.text('🎨 Resumo de Votos por Cor', 20, yPosition);
+        
+        yPosition += 15;
+        
+        const aggregatedResults = this.aggregateResultsByColor(results);
+        
+        aggregatedResults.forEach((colorResult, index) => {
+          if (yPosition > 250) {
+            pdf.addPage();
+            yPosition = 20;
+          }
+          
+          pdf.setFontSize(12);
+          pdf.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+          pdf.text(`${colorResult.color}:`, 25, yPosition);
+          
+          pdf.setFontSize(14);
+          pdf.setTextColor(accentColor[0], accentColor[1], accentColor[2]);
+          pdf.text(`${colorResult.totalCount} votos`, 120, yPosition);
+          
+          yPosition += 8;
+        });
+      }
+      
+      // Nova página para detalhes dos participantes
+      pdf.addPage();
+      
+      // Título da seção de participantes
+      pdf.setFontSize(18);
+      pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      pdf.text('👥 Detalhes dos Participantes', 20, 30);
+      
+      let yPosition = 45;
+      
+      results.participants_results.forEach((participant, participantIndex) => {
+        if (yPosition > 250) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+        
+        // Nome do participante
+        pdf.setFontSize(14);
+        pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        pdf.text(`${participantIndex + 1}. ${participant.name}`, 20, yPosition);
+        
+        yPosition += 8;
+        
+        // Cor escolhida
+        pdf.setFontSize(12);
+        pdf.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+        const envelopeColor = this.getColorNameFromHex(participant.envelope_choice);
+        pdf.text(`Cor Escolhida: ${envelopeColor}`, 25, yPosition);
+        pdf.text(`Total de Votos: ${participant.total_votes}`, 25, yPosition + 6);
+        
+        yPosition += 15;
+        
+        // Votos detalhados
+        if (participant.detailed_votes.length > 0) {
+          pdf.setFontSize(11);
+          pdf.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+          pdf.text('Votos Recebidos:', 25, yPosition);
+          
+          yPosition += 6;
+          
+          participant.detailed_votes.forEach((vote, voteIndex) => {
+            if (yPosition > 250) {
+              pdf.addPage();
+              yPosition = 20;
+            }
+            
+            pdf.setFontSize(10);
+            pdf.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+            pdf.text(`• ${vote.from_name} → ${vote.card_color}`, 30, yPosition);
+            
+            yPosition += 5;
+            
+            // Descrição da carta (quebrar linha se necessário)
+            const description = vote.card_description;
+            if (description.length > 60) {
+              const lines = this.splitTextToFit(description, 60);
+              lines.forEach(line => {
+                if (yPosition > 250) {
+                  pdf.addPage();
+                  yPosition = 20;
+                }
+                pdf.text(`  ${line}`, 35, yPosition);
+                yPosition += 4;
+              });
+            } else {
+              pdf.text(`  ${description}`, 35, yPosition);
+              yPosition += 4;
+            }
+            
+            yPosition += 2;
+          });
+        }
+        
+        yPosition += 10;
+        
+        // Linha separadora entre participantes
+        if (participantIndex < results.participants_results.length - 1) {
+          pdf.setDrawColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+          pdf.setLineWidth(0.2);
+          pdf.line(20, yPosition, 190, yPosition);
+          yPosition += 5;
+        }
+      });
+      
+      // Adicionar página de estatísticas finais
+      pdf.addPage();
+      
+      // Título da página de estatísticas
+      pdf.setFontSize(18);
+      pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      pdf.text('📈 Estatísticas Finais', 20, 30);
+      
+      // Estatísticas gerais
+      pdf.setFontSize(14);
+      pdf.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+      pdf.text(`Total de Participantes: ${results.total_participants}`, 20, 50);
+      
+      const totalVotes = results.participants_results.reduce((sum, p) => sum + p.total_votes, 0);
+      pdf.text(`Total de Votos: ${totalVotes}`, 20, 65);
+      
+      const mostVotedColor = this.aggregateResultsByColor(results)[0];
+      if (mostVotedColor) {
+        pdf.text(`Cor Mais Votada: ${mostVotedColor.color} (${mostVotedColor.totalCount} votos)`, 20, 80);
+      }
+      
+      // Distribuição de cores
+      pdf.setFontSize(16);
+      pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      pdf.text('Distribuição de Votos por Cor:', 20, 100);
+      
+      yPosition = 115;
+      const aggregatedResults = this.aggregateResultsByColor(results);
+      aggregatedResults.forEach((colorResult, index) => {
+        const percentage = ((colorResult.totalCount / totalVotes) * 100).toFixed(1);
+        pdf.setFontSize(12);
+        pdf.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+        pdf.text(`${colorResult.color}: ${colorResult.totalCount} votos (${percentage}%)`, 25, yPosition);
+        yPosition += 8;
+      });
+      
+      // Rodapé
+      const pageCount = pdf.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(10);
+        pdf.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+        pdf.text(`Página ${i} de ${pageCount}`, 20, 287);
+        pdf.text(`Gerado em ${this.getCurrentDate()}`, 120, 287);
+      }
+      
+      // Salvar o PDF
+      const fileName = `resultados_${results.room_code}_${new Date().toISOString().split('T')[0]}.pdf`;
+      pdf.save(fileName);
+      
+      // Mostrar confirmação
+      Swal.fire({
+        icon: 'success',
+        title: 'Relatório PDF Baixado!',
+        text: 'O relatório em PDF foi gerado e baixado com sucesso, incluindo o gráfico!',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#28a745'
+      });
+      
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      
+      Swal.fire({
+        icon: 'error',
+        title: 'Erro ao Gerar PDF',
+        text: 'Não foi possível gerar o relatório em PDF. Tente novamente.',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#d33'
+      });
+    }
+  }
+
+  /**
+   * Quebra texto para caber na largura do PDF
+   */
+  private splitTextToFit(text: string, maxWidth: number): string[] {
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+    
+    words.forEach(word => {
+      if ((currentLine + ' ' + word).length <= maxWidth) {
+        currentLine += (currentLine ? ' ' : '') + word;
+      } else {
+        if (currentLine) {
+          lines.push(currentLine);
+        }
+        currentLine = word;
+      }
+    });
+    
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+    
+    return lines;
+  }
+
+  /**
+   * Converte código hexadecimal para nome da cor
+   */
+  getColorNameFromHex(hex: string): string {
+    const colorMap: { [key: string]: string } = {
+      '#8B5CF6': 'Roxo',
+      '#EAB308': 'Amarelo',
+      '#22C55E': 'Verde',
+      '#EF4444': 'Vermelho',
+      '#F97316': 'Laranja',
+      '#3B82F6': 'Azul'
+    };
+    
+    return colorMap[hex] || hex;
+  }
+
+  /**
+   * Converte nome da cor para código hexadecimal
+   */
+  getColorHex(colorName: string): string {
+    const colorMap: { [key: string]: string } = {
+      'Roxo': '#8B5CF6',
+      'Amarelo': '#EAB308',
+      'Verde': '#22C55E',
+      'Vermelho': '#EF4444',
+      'Laranja': '#F97316',
+      'Azul': '#3B82F6'
+    };
+    
+    return colorMap[colorName] || '#6B7280';
+  }
+
+  /**
+   * Método público para usar no template
+   */
+  getAggregatedResults(results: RoomResults): Array<{color: string, totalCount: number}> {
+    return this.aggregateResultsByColor(results);
+  }
+
+  /**
+   * Retorna a data atual formatada para o template
+   */
+  getCurrentDate(): string {
+    return new Date().toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   }
 }
 

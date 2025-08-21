@@ -47,6 +47,35 @@ export interface RoomStatus {
   };
 }
 
+export interface DetailedVote {
+  from_name: string;
+  card_color: string;
+  card_description: string;
+}
+
+export interface ColorResult {
+  color: string;
+  planet: string;
+  count: number;
+}
+
+export interface ParticipantResult {
+  participant_id: number;
+  name: string;
+  envelope_choice: string;
+  total_votes: number;
+  results_by_color: ColorResult[];
+  detailed_votes: DetailedVote[];
+}
+
+export interface RoomResults {
+  room_id: number;
+  room_code: string;
+  room_title: string;
+  total_participants: number;
+  participants_results: ParticipantResult[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -160,5 +189,12 @@ export class CriarSalaService {
    */
   getAllRooms(): Observable<any[]> {
     return this.http.get<any[]>(`${this.apiUrl}/admin/all`);
+  }
+
+  /**
+   * Obter resultados de todas as rodadas de uma sala
+   */
+  getRoomResults(roomCode: string): Observable<RoomResults> {
+    return this.http.get<RoomResults>(`${this.apiUrl}/results/${roomCode}/all`);
   }
 }

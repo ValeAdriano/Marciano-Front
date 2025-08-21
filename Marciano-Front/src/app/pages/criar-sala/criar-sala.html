@@ -118,6 +118,9 @@
               <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Código
               </th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Ações
+              </th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
@@ -154,11 +157,23 @@
                     {{ r.code }}
                   </div>
                 </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <div class="flex items-center gap-2">
+                    <button 
+                      type="button"
+                      class="inline-flex items-center px-3 py-1 rounded bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      (click)="openRoomResults(r.code)"
+                      title="Ver resultados das rodadas"
+                    >
+                      📊 Ver Resultados
+                    </button>
+                  </div>
+                </td>
               </tr>
               
               <!-- Linha de Detalhes Expandidos -->
               <tr *ngIf="!isRoomFinished(r.code) && isRoomExpanded(r.code)" class="bg-gray-50">
-                <td colspan="3" class="px-6 py-4">
+                <td colspan="4" class="px-6 py-4">
                   <div class="space-y-4">
                     <!-- Cabeçalho dos Detalhes -->
                     <div class="flex items-center justify-between border-b border-gray-200 pb-2">
@@ -260,6 +275,15 @@
                         >
                           🏁 Finalizar Sala
                         </button>
+
+                        <button 
+                          type="button"
+                          class="inline-flex items-center px-3 py-1 rounded bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          (click)="openRoomResults(r.code)"
+                          title="Ver resultados das rodadas"
+                        >
+                          📊 Ver Resultados
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -272,3 +296,134 @@
     </div>
   </section>
 </main>
+
+<!-- Modal de Resultados -->
+<div *ngIf="showResultsModal()" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+  <!-- Overlay de fundo -->
+  <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" (click)="closeResultsModal()"></div>
+
+  <!-- Modal -->
+  <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+    <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-6xl">
+      
+      <!-- Header da Modal -->
+      <div class="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-semibold text-white" id="modal-title">
+            📊 Resultados da Sala - {{ currentResults()?.room_title }}
+          </h3>
+          <button 
+            type="button" 
+            class="rounded-md bg-white bg-opacity-20 text-white hover:bg-opacity-30 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600"
+            (click)="closeResultsModal()"
+          >
+            <span class="sr-only">Fechar</span>
+            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <p class="mt-1 text-sm text-blue-100">
+          Código: {{ currentResults()?.room_code }} | Participantes: {{ currentResults()?.total_participants }}
+        </p>
+      </div>
+
+      <!-- Conteúdo da Modal -->
+      <div class="px-6 py-6">
+        <div *ngIf="loadingResults()" class="flex justify-center items-center py-12">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <span class="ml-3 text-gray-600">Carregando resultados...</span>
+        </div>
+
+        <div *ngIf="!loadingResults() && currentResults()" class="space-y-6">
+          
+          <!-- Gráfico de Resultados -->
+          <div class="bg-gray-50 rounded-lg p-4">
+            <h4 class="text-lg font-semibold text-gray-800 mb-4">📈 Resumo de Votos por Cor</h4>
+            <div class="h-80">
+              <canvas #resultsChartCanvas></canvas>
+            </div>
+          </div>
+
+          <!-- Estatísticas Detalhadas -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- Resumo por Cor -->
+            <div class="bg-white rounded-lg border border-gray-200 p-4">
+              <h4 class="text-lg font-semibold text-gray-800 mb-4">🎨 Votos por Cor</h4>
+              <div class="space-y-3">
+                <div *ngFor="let colorResult of getAggregatedResults(currentResults()!)" class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div class="flex items-center">
+                    <div class="w-4 h-4 rounded-full mr-3" [style.background-color]="getColorHex(colorResult.color)"></div>
+                    <span class="font-medium text-gray-700">{{ colorResult.color }}</span>
+                  </div>
+                  <span class="text-lg font-bold text-blue-600">{{ colorResult.totalCount }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Participantes -->
+            <div class="bg-white rounded-lg border border-gray-200 p-4">
+              <h4 class="text-lg font-semibold text-gray-800 mb-4">👥 Participantes</h4>
+              <div class="space-y-3">
+                <div *ngFor="let participant of currentResults()!.participants_results" class="p-3 bg-gray-50 rounded-lg">
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="font-medium text-gray-700">{{ participant.name }}</span>
+                    <span class="text-sm text-gray-500">{{ participant.total_votes }} votos</span>
+                  </div>
+                  <div class="flex items-center">
+                    <div class="w-3 h-3 rounded-full mr-2" [style.background-color]="participant.envelope_choice"></div>
+                    <span class="text-sm text-gray-600">{{ getColorNameFromHex(participant.envelope_choice) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Votos Detalhados -->
+          <div class="bg-white rounded-lg border border-gray-200 p-4">
+            <h4 class="text-lg font-semibold text-gray-800 mb-4">🗳️ Votos Detalhados</h4>
+            <div class="space-y-4">
+              <div *ngFor="let participant of currentResults()!.participants_results" class="border-l-4 border-blue-200 pl-4">
+                <h5 class="font-medium text-gray-800 mb-2">{{ participant.name }}</h5>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div *ngFor="let vote of participant.detailed_votes" class="bg-gray-50 p-3 rounded-lg">
+                    <div class="flex items-center mb-2">
+                      <div class="w-3 h-3 rounded-full mr-2" [style.background-color]="getColorHex(vote.card_color)"></div>
+                      <span class="text-sm font-medium text-gray-700">{{ vote.card_color | titlecase }}</span>
+                    </div>
+                    <p class="text-sm text-gray-600">{{ vote.from_name }}</p>
+                    <p class="text-xs text-gray-500 mt-1">{{ vote.card_description }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer da Modal -->
+      <div class="bg-gray-50 px-6 py-4 flex flex-col sm:flex-row sm:justify-between sm:space-y-0 space-y-3">
+        <div class="text-sm text-gray-500">
+          <p>Resultados gerados em {{ getCurrentDate() }}</p>
+        </div>
+        <div class="flex space-x-3">
+          <button 
+            type="button" 
+            class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            (click)="closeResultsModal()"
+          >
+            Fechar
+          </button>
+          <button 
+            type="button" 
+            class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+            (click)="downloadResultsReport()"
+          >
+            📥 Baixar Relatório PDF
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
