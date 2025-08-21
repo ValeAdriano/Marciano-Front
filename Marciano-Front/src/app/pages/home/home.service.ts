@@ -1,11 +1,12 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, map, throwError, catchError } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
-// Tipos
-export interface JoinRoomRequest {
+// Tipos seguindo o padrão do angular_implementation.md
+export interface ParticipantJoin {
   name: string;
-  envelopeHex: string;
+  envelope_choice: string;
 }
 
 export interface UserSession {
@@ -19,6 +20,8 @@ export interface UserSession {
 // Resposta esperada do backend em POST /rooms/{room_id}/join
 interface JoinRoomResponse {
   participant_id: number | string;
+  room_id: number;
+  room_code: string;
   token?: string;
 }
 
@@ -32,19 +35,19 @@ export class HomeService {
   constructor(private http: HttpClient) {}
 
   /**
-   * Faz POST no backend: /rooms/{room_id}/join  { name }
-   * Salva sessão no storage e atualiza o signal.
+   * Faz POST no backend: /rooms/{code}/join com nome e envelope_choice
+   * Seguindo exatamente o padrão do angular_implementation.md
    */
-  joinRoom(roomCode: string, body: JoinRoomRequest): Observable<UserSession> {
+  joinRoom(roomCode: string, participant: ParticipantJoin): Observable<UserSession> {
     const code = (roomCode ?? '').trim().toUpperCase();
 
+    // POST direto para /rooms/{code}/join
     return this.http
-      .post<{ participant_id: string | number; room_id: number; room_code: string; token?: string }>(
-        `/rooms/join_by_code`,
+      .post<JoinRoomResponse>(
+        `${environment.apiUrl}/api/rooms/${code}/join`,
         {
-          code,
-          name: body.name,
-          envelope_choice: body.envelopeHex,
+          name: participant.name,
+          envelope_choice: participant.envelope_choice
         }
       )
       .pipe(
@@ -55,8 +58,8 @@ export class HomeService {
           const session: UserSession = {
             roomCode: res.room_code,
             participantId: String(res.participant_id),
-            name: body.name,
-            envelopeHex: body.envelopeHex,
+            name: participant.name,
+            envelopeHex: participant.envelope_choice,
             token: res.token ?? null,
           };
           this.saveToStorage(session);
@@ -64,15 +67,41 @@ export class HomeService {
           return session;
         }),
         catchError((err: HttpErrorResponse) => {
-          const detail =
-            (err.error && (err.error.detail || err.error.message)) ||
-            (typeof err.error === 'string' ? err.error : '') ||
-            `Erro ${err.status || ''}`;
+          const detail = this.getErrorMessage(err);
           return throwError(() => new Error(detail));
         })
       );
   }
 
+  /**
+   * Obtém mensagem de erro customizada baseada no tipo de erro
+   */
+  private getErrorMessage(err: HttpErrorResponse): string {
+    if (err.error instanceof ErrorEvent) {
+      return `Erro de conexão: ${err.error.message}`;
+    }
+
+    switch (err.status) {
+      case 400:
+        return err.error?.detail || err.error?.message || 'Dados inválidos enviados para o servidor';
+      case 401:
+        return 'Não autorizado. Faça login novamente.';
+      case 403:
+        return 'Acesso negado. Você não tem permissão para esta ação.';
+      case 404:
+        return 'Sala não encontrada. Verifique o código e tente novamente.';
+      case 409:
+        return 'Você já está nesta sala ou o nome já está em uso.';
+      case 422:
+        return err.error?.detail || 'Dados inválidos';
+      case 500:
+        return 'Erro interno do servidor. Tente novamente em alguns minutos.';
+      case 503:
+        return 'Serviço temporariamente indisponível. Tente novamente em alguns minutos.';
+      default:
+        return err.error?.message || `Erro ${err.status || 'desconhecido'}: ${err.message}`;
+    }
+  }
 
   getSession(): UserSession | null {
     return this.session();

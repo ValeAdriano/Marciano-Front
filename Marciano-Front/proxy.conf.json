@@ -1,11 +1,11 @@
 {
-  "/rooms": { "target": "http://localhost:5000", "secure": false, "changeOrigin": true },
-  "/participants": { "target": "http://localhost:5000", "secure": false, "changeOrigin": true },
-  "/results": { "target": "http://localhost:5000", "secure": false, "changeOrigin": true },
-  "/cards": { "target": "http://localhost:5000", "secure": false, "changeOrigin": true },
-  "/healthz": { "target": "http://localhost:5000", "secure": false, "changeOrigin": true },
-  "/ws": {
-    "target": "http://localhost:5000",
+  "/api": { 
+    "target": "http://127.0.0.1:8000", 
+    "secure": false, 
+    "changeOrigin": true 
+  },
+  "/socket.io": {
+    "target": "http://127.0.0.1:8000",
     "secure": false,
     "ws": true,
     "changeOrigin": true

@@ -1,6 +1,6 @@
 import {
   Component, computed, signal, WritableSignal, AfterViewInit, OnInit,
-  inject, ChangeDetectionStrategy
+  inject, ChangeDetectionStrategy, OnDestroy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
@@ -8,6 +8,7 @@ import {
   DragDropModule, CdkDragDrop, transferArrayItem, CdkDragStart, CdkDragEnd
 } from '@angular/cdk/drag-drop';
 import Swal from 'sweetalert2';
+import { Subscription } from 'rxjs';
 
 // Swiper core + CSS
 import Swiper from 'swiper';
@@ -16,10 +17,10 @@ import { Mousewheel, Keyboard, FreeMode } from 'swiper/modules';
 
 import { RodadaService } from '../rodada/rodada.service';
 import { HomeService } from '../home/home.service';
-import { RodadaZeroApiService } from './rodada-zero.service';
+import { RodadaZeroApiService, RoomStatus, VoteResult } from './rodada-zero.service';
 
 type Cor = 'Laranja' | 'Verde' | 'Amarelo' | 'Azul' | 'Vermelho' | 'Roxo';
-type Carta = { id: string; cor: Cor; texto: string; };
+type Carta = { id: string; cor: Cor; texto: string; planeta?: string; };
 
 type Alvo = {
   id: string;
@@ -31,17 +32,17 @@ type Alvo = {
 
 @Component({
   selector: 'app-rodada-zero',
-  imports: [CommonModule, RouterLink, DragDropModule],
+  imports: [CommonModule, DragDropModule],
   templateUrl: './rodada-zero.html',
   styleUrl: './rodada-zero.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block uno' },
 })
-export class RodadaZeroComponent implements AfterViewInit, OnInit {
+export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
   private readonly rodada = inject(RodadaService);
   private readonly home = inject(HomeService);
   private readonly router = inject(Router);
-  private readonly api = inject(RodadaZeroApiService);
+  readonly api = inject(RodadaZeroApiService);
 
   readonly rodadaNumero = 0;
 
@@ -51,24 +52,28 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit {
   progress = this.rodada.progress;
   session = this.rodada.session;
 
+  // Status da sala
+  private readonly _roomStatus = signal<RoomStatus | null>(null);
+  roomStatus = this._roomStatus.asReadonly();
+
   // Alvo único: o próprio usuário
   private readonly _alvos = signal<Alvo[]>([]);
   alvos = this._alvos.asReadonly();
 
   // Mão do usuário
   hand: WritableSignal<Carta[]> = signal<Carta[]>([
-    { id: 'lar-1', cor: 'Laranja',  texto: 'Tem pensamento estratégico e visão do todo' },
-    { id: 'lar-2', cor: 'Laranja',  texto: 'É bom em planejar e organizar' },
-    { id: 'ver-1', cor: 'Verde',    texto: 'Preserva a harmonia no ambiente de trabalho' },
-    { id: 'ver-2', cor: 'Verde',    texto: 'Dá grande atenção ao bem estar da pessoa' },
-    { id: 'ama-1', cor: 'Amarelo',  texto: 'É ágil, flexível e aberto a mudanças' },
-    { id: 'ama-2', cor: 'Amarelo',  texto: 'Traz as novas ideias e ajuda a empresa a inovar' },
-    { id: 'az-1',  cor: 'Azul',     texto: 'Ajuda a empresa e as equipes a manter o foco' },
-    { id: 'az-2',  cor: 'Azul',     texto: 'Alinha os temas com profundidade e senso crítico' },
-    { id: 'vermelho-1', cor: 'Vermelho', texto: 'Toma a iniciativa e faz acontecer' },
-    { id: 'vermelho-2', cor: 'Vermelho', texto: 'É prático e focado na ação e nos resultados' },
-    { id: 'roxo-1', cor: 'Roxo',    texto: 'Avalia o passado para melhorar as suas práticas' },
-    { id: 'roxo-2', cor: 'Roxo',    texto: 'Acompanha e monitora ações e resultados' },
+    { id: 'lar-1', cor: 'Laranja',  texto: 'Tem pensamento estratégico e visão do todo', planeta: 'Marte' },
+    { id: 'lar-2', cor: 'Laranja',  texto: 'É bom em planejar e organizar', planeta: 'Marte' },
+    { id: 'ver-1', cor: 'Verde',    texto: 'Preserva a harmonia no ambiente de trabalho', planeta: 'Vênus' },
+    { id: 'ver-2', cor: 'Verde',    texto: 'Dá grande atenção ao bem estar da pessoa', planeta: 'Vênus' },
+    { id: 'ama-1', cor: 'Amarelo',  texto: 'É ágil, flexível e aberto a mudanças', planeta: 'Mercúrio' },
+    { id: 'ama-2', cor: 'Amarelo',  texto: 'Traz as novas ideias e ajuda a empresa a inovar', planeta: 'Mercúrio' },
+    { id: 'az-1',  cor: 'Azul',     texto: 'Ajuda a empresa e as equipes a manter o foco', planeta: 'Saturno' },
+    { id: 'az-2',  cor: 'Azul',     texto: 'Alinha os temas com profundidade e senso crítico', planeta: 'Saturno' },
+    { id: 'vermelho-1', cor: 'Vermelho', texto: 'Toma a iniciativa e faz acontecer', planeta: 'Júpiter' },
+    { id: 'vermelho-2', cor: 'Vermelho', texto: 'É prático e focado na ação e nos resultados', planeta: 'Júpiter' },
+    { id: 'roxo-1', cor: 'Roxo',    texto: 'Avalia o passado para melhorar as suas práticas', planeta: 'Urano' },
+    { id: 'roxo-2', cor: 'Roxo',    texto: 'Acompanha e monitora ações e resultados', planeta: 'Urano' },
   ]);
 
   /** Associações por alvo (máx. 1 carta) */
@@ -92,6 +97,10 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit {
   private swiper?: Swiper;
   selectedCardId = signal<string | null>(null);
   draggingCardId = signal<string | null>(null);
+  isSubmitting = signal(false);
+
+  // Subscriptions
+  private subscriptions: Subscription[] = [];
 
   ngOnInit(): void {
     if (!this.home.getSession()) {
@@ -115,7 +124,11 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit {
 
     // Conecta socket (por roomCode)
     const code = this.roomCode();
-    if (code) this.api.connectSocket(code);
+    if (code) {
+      this.api.connectSocket(code);
+      this.setupSocketListeners();
+      this.loadRoomStatus();
+    }
   }
 
   ngAfterViewInit(): void {
@@ -146,6 +159,85 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit {
     });
 
     queueMicrotask(() => this.swiper?.update());
+  }
+
+  ngOnDestroy(): void {
+    this.subscriptions.forEach(sub => sub.unsubscribe());
+    this.swiper?.destroy();
+  }
+
+  private setupSocketListeners(): void {
+    // Escutar eventos de status da sala
+    this.subscriptions.push(
+      this.api.socketEvents$.subscribe(event => {
+        switch (event.type) {
+          case 'room:status':
+            this._roomStatus.set(event.status);
+            break;
+          case 'vote:progress':
+            this.handleVoteProgress(event.progress);
+            break;
+          case 'round:finished':
+            this.handleRoundFinished();
+            break;
+          case 'results:ready':
+            this.handleResultsReady();
+            break;
+        }
+      })
+    );
+  }
+
+  private async loadRoomStatus(): Promise<void> {
+    const code = this.roomCode();
+    if (!code) return;
+
+    try {
+      const result = await this.api.getRoomStatus(code);
+      if (result.ok) {
+        this._roomStatus.set(result.data);
+      } else {
+        console.warn('Erro ao carregar status da sala:', result.error);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar status da sala:', error);
+    }
+  }
+
+  private handleVoteProgress(progress: number): void {
+    // Atualizar progresso da votação
+    console.log('Progresso da votação:', progress);
+  }
+
+  private handleRoundFinished(): void {
+    // Rodada terminou, mostrar mensagem
+    Swal.fire({
+      title: 'Rodada Finalizada!',
+      text: 'Aguarde o próximo passo.',
+      icon: 'info',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      allowEnterKey: false,
+      showConfirmButton: false,
+      timer: 3000,
+    });
+  }
+
+  private handleResultsReady(): void {
+    // Resultados estão prontos, redirecionar
+    Swal.fire({
+      title: 'Resultados Prontos!',
+      text: 'Redirecionando para os resultados...',
+      icon: 'success',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      allowEnterKey: false,
+      showConfirmButton: false,
+      timer: 2000,
+    }).then(() => {
+      // Redirecionar para resultados
+      this.router.navigate(['/resultados']);
+    });
   }
 
   // Utils
@@ -203,6 +295,7 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit {
           <span style="display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:middle;margin-right:6px;background:${this.colorHex[card.cor]}"></span>
           ${this.escape(card.cor)}
         </p>
+        <p><b>Planeta:</b> 🪐 ${this.escape(card.planeta || 'N/A')}</p>
        </div>`;
 
     const confirm = await Swal.fire({
@@ -218,32 +311,40 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit {
 
     // --- API: userID vem do back via /rooms/{code}/me ---
     try {
-      await this.api.sendSelfVote({
+      this.isSubmitting.set(true);
+      const result = await this.api.sendSelfVote({
         roomCode: this.roomCode(),
         cardId: card.id,
       });
-    } catch {
+
+      if (result.ok) {
+        // Sucesso - transferir carta
+        transferArrayItem(event.previousContainer.data, event.container.data, event.previousIndex, 0);
+        this.hand.set([...this.hand()]);
+        this.assigned[alvo.id] = [...this.ensureBucket(alvo.id)];
+
+        this.selectedCardId.set(null);
+        this.draggingCardId.set(null);
+        this.swiper?.update();
+
+        await Swal.fire({
+          title: 'Autoavaliação registrada',
+          html: 'Aguarde o próximo passo.<br>Esta janela fechará quando a próxima etapa começar.',
+          icon: 'success',
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          allowEnterKey: false,
+          showConfirmButton: false,
+          didOpen: () => Swal.showLoading(),
+        });
+      } else {
+        this.toastError(`Erro ao registrar voto: ${result.error}`);
+      }
+    } catch (error) {
       this.toastInfo('Não foi possível registrar no servidor (offline?). Sua seleção será mantida localmente.');
+    } finally {
+      this.isSubmitting.set(false);
     }
-
-    transferArrayItem(event.previousContainer.data, event.container.data, event.previousIndex, 0);
-    this.hand.set([...this.hand()]);
-    this.assigned[alvo.id] = [...this.ensureBucket(alvo.id)];
-
-    this.selectedCardId.set(null);
-    this.draggingCardId.set(null);
-    this.swiper?.update();
-
-    await Swal.fire({
-      title: 'Autoavaliação registrada',
-      html: 'Aguarde o próximo passo.<br>Esta janela fechará quando a próxima etapa começar.',
-      icon: 'success',
-      allowOutsideClick: false,
-      allowEscapeKey: false,
-      allowEnterKey: false,
-      showConfirmButton: false,
-      didOpen: () => Swal.showLoading(),
-    });
   }
 
   removerDoAlvo(alvoId: string, idx = 0) {
@@ -261,7 +362,25 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit {
   private toastInfo(msg: string) {
     void Swal.fire({ toast: true, position: 'top', icon: 'info', title: msg, timer: 1600, showConfirmButton: false });
   }
+
+  private toastError(msg: string) {
+    void Swal.fire({ toast: true, position: 'top', icon: 'error', title: msg, timer: 3000, showConfirmButton: false });
+  }
+
   private escape(s: string) {
     const d = document.createElement('div'); d.innerText = s; return d.innerHTML;
+  }
+
+  getStatusDisplay(status: string | undefined): string {
+    if (!status) return 'Carregando...';
+    
+    const statusMap: { [key: string]: string } = {
+      'lobby': '🔄 Lobby',
+      'rodada_0': '🎯 Rodada 0 - Autoavaliação',
+      'rodada_1': '🎯 Rodada 1 - Votação',
+      'rodada_2': '🎯 Rodada 2 - Votação',
+      'finalizado': '🏁 Finalizado'
+    };
+    return statusMap[status] || status;
   }
 }

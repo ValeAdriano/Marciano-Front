@@ -1,9 +1,13 @@
 import { Injectable, inject, signal, computed, OnDestroy } from '@angular/core';
 import { HomeService, UserSession } from '../home/home.service';
+import { SocketService } from '../../@shared/services/socket.service';
+import { takeUntil, Subject } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class RodadaService implements OnDestroy {
   private readonly home = inject(HomeService);
+  private readonly socket = inject(SocketService);
+  private readonly destroy$ = new Subject<void>();
 
   // Sessão atual (do localStorage via HomeService)
   private readonly _session = signal<UserSession | null>(this.home.getSession());
@@ -38,6 +42,7 @@ export class RodadaService implements OnDestroy {
   /** Inicializa/retoma a sessão e o timer. */
   init(): void {
     this._session.set(this.home.getSession());
+    this.setupSocketListeners();
     this.startTimer(); // começa do total configurado
   }
 
@@ -71,6 +76,29 @@ export class RodadaService implements OnDestroy {
     this.startTimer(totalSeconds);
   }
 
+  /**
+   * Configura listeners do WebSocket para eventos de rodada
+   */
+  private setupSocketListeners(): void {
+    // Quando uma rodada é iniciada pelo servidor
+    this.socket.onRoundStarted$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((event) => {
+        console.log('Rodada iniciada via WebSocket:', event);
+        this.startTimer(event.duration);
+      });
+
+    // Quando uma rodada é finalizada pelo servidor
+    this.socket.onRoundFinished$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((event) => {
+        console.log('Rodada finalizada via WebSocket:', event);
+        this.pauseTimer();
+        // Aqui você pode navegar para a página de resultados
+        // this.router.navigate(['/resultados']);
+      });
+  }
+
   private clearTimer(): void {
     if (this.intervalId !== null) {
       clearInterval(this.intervalId);
@@ -79,6 +107,8 @@ export class RodadaService implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.clearTimer();
   }
 }

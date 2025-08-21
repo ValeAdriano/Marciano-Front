@@ -10,6 +10,53 @@
       <p class="mt-2 text-gray-700">Todos os participantes entram no lobby apenas após concluírem suas seleções.</p>
     </div>
 
+    <!-- Status da Rodada -->
+    <div class="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200" *ngIf="roomStatus()">
+      <div class="text-center">
+        <h3 class="text-lg font-semibold text-blue-800 mb-2">
+          {{ getStatusDisplay(roomStatus()?.status) }}
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div>
+            <span class="font-medium text-blue-700">Rodada:</span>
+            <span class="ml-2 text-gray-700">{{ roomStatus()?.current_round }}/{{ roomStatus()?.max_rounds }}</span>
+          </div>
+          <div>
+            <span class="font-medium text-blue-700">Participantes:</span>
+            <span class="ml-2 text-gray-700">{{ roomStatus()?.participants_count }}</span>
+          </div>
+          <div>
+            <span class="font-medium text-blue-700">Status:</span>
+            <span class="ml-2 text-gray-700">{{ roomStatus()?.status }}</span>
+          </div>
+        </div>
+        
+        <!-- Progresso da Votação -->
+        <div class="mt-4" *ngIf="roomStatus()?.round_progress">
+          <div class="flex justify-between text-xs mb-2">
+            <span class="text-blue-700">Progresso da Votação</span>
+            <span class="text-gray-600">{{ roomStatus()?.round_progress?.current_votes ?? 0 }}/{{ roomStatus()?.round_progress?.expected_votes ?? 0 }}</span>
+          </div>
+          <div class="w-full bg-blue-200 rounded-full h-2">
+            <div class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                 [style.width.%]="roomStatus()?.round_progress?.progress_pct ?? 0"></div>
+          </div>
+        </div>
+
+        <!-- Mensagem de Redirecionamento -->
+        <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg" *ngIf="shouldShowRedirectMessage()">
+          <div class="flex items-center gap-2 text-yellow-800">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+            </svg>
+            <span class="text-sm font-medium">
+              Você será redirecionado automaticamente para a próxima etapa em alguns segundos...
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="mt-6 grid sm:grid-cols-2 gap-4">
       <!-- Código da sala -->
       <div class="bg-white rounded-2xl shadow-card ring-1 ring-black/5 p-4">
@@ -25,8 +72,18 @@
         </div>
       </div>
 
-      <!-- Seu Perfil (substitui "Convide pessoas com este link") -->
+      <!-- Seu Perfil e Status de Conexão -->
       <div class="bg-white rounded-2xl shadow-card ring-1 ring-black/5 p-4">
+        <!-- Status de Conexão -->
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-sm text-gray-600">Status da Conexão</span>
+          <span 
+            class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+            [class]="isConnected() ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
+          >
+            {{ isConnected() ? '🟢 Conectado' : '🔴 Desconectado' }}
+          </span>
+        </div>
 
         <div class="mt-3 flex items-center gap-3">
           <!-- Avatar com ícone em branco e fundo na cor do envelope -->
@@ -42,10 +99,14 @@
             <div class="font-medium text-gray-900 truncate">
               {{ session()?.name || '—' }}
             </div>
+            <!-- Ícone da cor do envelope do usuário atual -->
+            <div class="flex items-center gap-2 mt-1">
+              <span class="inline-flex h-3 w-3 rounded-full border border-gray-300"
+                    [style.backgroundColor]="session()?.envelopeHex || '#0067b1'"></span>
+              <span class="text-xs text-gray-500">Sua cor</span>
+            </div>
           </div>
         </div>
-
-       
       </div>
     </div>
   </section>
@@ -61,28 +122,40 @@
         </div>
 
         <ul class="mt-4 divide-y divide-gray-300">
-          @for (p of participants(); track p.id) {
-            <li class="py-3 flex items-center justify-between">
-              <div class="flex items-center gap-3">
-                <!-- Avatar: ícone de perfil com fundo na cor do envelope -->
-                <span class="inline-flex h-9 w-9 items-center justify-center rounded-full"
-                      [style.backgroundColor]="p.envelopeHex">
-                  <svg viewBox="0 0 24 24" aria-hidden="true" class="h-5 w-5 text-white">
-                    <path fill="currentColor"
-                          d="M12 12c2.761 0 5-2.686 5-6s-2.239-6-5-6-5 2.686-5 6 2.239 6 5 6zm0 2c-4.418 0-8 2.686-8 6v2h16v-2c0-3.314-3.582-6-8-6z"/>
-                  </svg>
-                </span>
-
-                <div>
-                  <div class="font-medium text-gray-900">{{ p.name }}</div>
-
-                </div>
-              </div>
-
-              <span [class]="statusClasses(p)">
-                {{ p.status === 'connected' ? 'Conectado' : 'Desconectado' }}
-              </span>
+          @if (participants().length === 0) {
+            <li class="py-6 text-center text-gray-500">
+              <div class="text-sm">Carregando participantes...</div>
+              <div class="text-xs mt-1">Debug: {{ count() }} participantes encontrados</div>
             </li>
+          } @else {
+            @for (p of participants(); track p.id) {
+              <li class="py-3 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <!-- Avatar: ícone de perfil com fundo na cor do envelope -->
+                  <span class="inline-flex h-9 w-9 items-center justify-center rounded-full"
+                        [style.backgroundColor]="p.envelope_choice">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" class="h-5 w-5 text-white">
+                      <path fill="currentColor"
+                            d="M12 12c2.761 0 5-2.686 5-6s-2.239-6-5-6-5 2.686-5 6 2.239 6 5 6zm0 2c-4.418 0-8 2.686-8 6v2h16v-2c0-3.314-3.582-6-8-6z"/>
+                    </svg>
+                  </span>
+
+                  <div>
+                    <div class="font-medium text-gray-900">{{ p.name }}</div>
+                    <!-- Ícone da cor do envelope -->
+                    <div class="flex items-center gap-2 mt-1">
+                      <span class="inline-flex h-4 w-4 rounded-full border-2 border-gray-200"
+                            [style.backgroundColor]="p.envelope_choice"></span>
+                      <span class="text-xs text-gray-500">Cor do envelope</span>
+                    </div>
+                  </div>
+                </div>
+
+                <span [class]="statusClasses(p)">
+                  {{ p.status === 'connected' ? 'Conectado' : 'Desconectado' }}
+                </span>
+              </li>
+            }
           }
         </ul>
       </div>
@@ -93,40 +166,80 @@
         <p class="text-sm text-gray-600 mt-1">Etapas da dinâmica</p>
 
         <ol class="mt-4 space-y-3">
-          <li class="flex items-start gap-3">
-            <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white text-sm font-semibold">1</span>
+          <!-- Etapa 1: Lobby -->
+          <li class="flex items-start gap-3" [class]="roomStatus()?.status === 'lobby' ? '' : 'opacity-70'">
+            <span class="inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold"
+                  [class]="roomStatus()?.status === 'lobby' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'">
+              1
+            </span>
             <div>
-              <div class="font-medium text-gray-900">Entrada</div>
-              <p class="text-sm text-gray-600">Todos os participantes já concluíram suas seleções e estão no lobby.</p>
+              <div class="font-medium text-gray-900">Lobby</div>
+              <p class="text-sm text-gray-600">
+                {{ roomStatus()?.status === 'lobby' ? 'Aguardando início da rodada.' : 'Concluído.' }}
+              </p>
             </div>
           </li>
-          <li class="flex items-start gap-3 opacity-70">
-            <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-yellow-200 text-yellow-700 text-sm font-semibold">2</span>
+
+          <!-- Etapa 2: Rodada 0 (Autoavaliação) -->
+          <li class="flex items-start gap-3" [class]="roomStatus()?.status === 'rodada_0' ? '' : 'opacity-70'">
+            <span class="inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold"
+                  [class]="roomStatus()?.status === 'rodada_0' ? 'bg-yellow-500 text-white' : 'bg-gray-200 text-gray-500'">
+              2
+            </span>
+            <div>
+              <div class="font-medium text-gray-900">Rodada 0 - Autoavaliação</div>
+              <p class="text-sm text-gray-600">
+                {{ roomStatus()?.status === 'rodada_0' ? 'Em andamento - Autoavaliação dos participantes.' : 'Aguardando.' }}
+              </p>
+            </div>
+          </li>
+
+          <!-- Etapa 3: Rodadas de Votação -->
+          <li class="flex items-start gap-3" [class]="roomStatus()?.status === 'rodada_1' || roomStatus()?.status === 'rodada_2' ? '' : 'opacity-70'">
+            <span class="inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold"
+                  [class]="roomStatus()?.status === 'rodada_1' || roomStatus()?.status === 'rodada_2' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'">
+              3
+            </span>
             <div>
               <div class="font-medium text-gray-900">Votação</div>
-              <p class="text-sm text-gray-600">Aguardando início pelo facilitador.</p>
+              <p class="text-sm text-gray-600">
+                {{ roomStatus()?.status === 'rodada_1' || roomStatus()?.status === 'rodada_2' ? 'Em andamento - Votação entre participantes.' : 'Aguardando.' }}
+              </p>
             </div>
           </li>
-          <li class="flex items-start gap-3 opacity-70">
-            <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-green-200 text-green-700 text-sm font-semibold">3</span>
+
+          <!-- Etapa 4: Resultados -->
+          <li class="flex items-start gap-3" [class]="roomStatus()?.status === 'finalizado' ? '' : 'opacity-70'">
+            <span class="inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold"
+                  [class]="roomStatus()?.status === 'finalizado' ? 'bg-purple-500 text-white' : 'bg-gray-200 text-gray-500'">
+              4
+            </span>
             <div>
               <div class="font-medium text-gray-900">Resultados</div>
-              <p class="text-sm text-gray-600">Gráficos e qualidades mais citadas.</p>
+              <p class="text-sm text-gray-600">
+                {{ roomStatus()?.status === 'finalizado' ? 'Disponível - Gráficos e qualidades mais citadas.' : 'Aguardando.' }}
+              </p>
             </div>
           </li>
         </ol>
 
         <div class="mt-6 space-y-3">
-          <a
-            routerLink="/rodada-zero"
-            role="button"
-            class="w-full inline-flex items-center justify-center rounded-lg bg-blue-600 text-white px-4 py-2.5 font-medium shadow-sm hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+          <!-- Botão de Iniciar Rodada (apenas para facilitadores) -->
+          <button
+            type="button"
+            (click)="startRound()"
+            [disabled]="!canStartRound()"
+            [class]="canStartRound() ? 'bg-blue-600 hover:bg-teal-600' : 'bg-gray-400 cursor-not-allowed'"
+            class="w-full inline-flex items-center justify-center rounded-lg text-white px-4 py-2.5 font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
           >
-            Iniciar Votação (Facilitador)
-          </a>
+            {{ canStartRound() ? 'Iniciar Votação (Facilitador)' : 'Aguardando participantes (mín. 2)' }}
+          </button>
 
-          <button type="button" disabled aria-disabled="true" title="Apenas visual"
-            class="w-full inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 px-4 py-2 font-medium disabled:opacity-40 disabled:cursor-not-allowed">
+          <!-- Botão de Sair da Sala -->
+          <button 
+            type="button" 
+            (click)="leaveRoom()"
+            class="w-full inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 px-4 py-2 font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400">
             Sair da Sala
           </button>
         </div>

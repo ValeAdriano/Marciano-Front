@@ -1,6 +1,6 @@
 import { Component, ChangeDetectionStrategy, computed, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import Swal from 'sweetalert2';
 import { HomeService } from './home.service';
@@ -8,7 +8,7 @@ import { HomeService } from './home.service';
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterLink, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './home.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
@@ -89,7 +89,10 @@ export class HomeComponent {
       this._submitting.set(true);
 
       // Chamada de API + persistência automática no localStorage pelo service
-      this.home.joinRoom(roomCode, { name, envelopeHex: envelope }).subscribe({
+      this.home.joinRoom(roomCode, { 
+        name, 
+        envelope_choice: envelope 
+      }).subscribe({
         next: (session) => {
           // ✅ igual ao front antigo: manda room_id e participant_id
           this.router.navigate(['/lobby'], {

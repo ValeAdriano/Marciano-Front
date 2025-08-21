@@ -1,0 +1,187 @@
+// Estilos personalizados para o SweetAlert
+:host ::ng-deep {
+  .swal2-popup {
+    border-radius: 16px;
+    font-family: inherit;
+  }
+
+  .swal2-title {
+    color: #1f2937;
+    font-weight: 600;
+  }
+
+  .swal2-content {
+    color: #6b7280;
+  }
+
+  .swal2-confirm {
+    border-radius: 8px;
+    font-weight: 500;
+    padding: 12px 24px;
+  }
+
+  .swal2-cancel {
+    border-radius: 8px;
+    font-weight: 500;
+    padding: 12px 24px;
+  }
+
+  .swal2-toast {
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  }
+
+  .swal2-toast .swal2-title {
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .swal2-toast .swal2-content {
+    font-size: 12px;
+  }
+}
+
+// Estilos para o formulário
+.form-container {
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+
+  .form-label {
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 0.5rem;
+  }
+
+  .form-input {
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    padding: 0.75rem;
+    transition: all 0.2s ease;
+
+    &:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+  }
+
+  .btn {
+    border-radius: 8px;
+    font-weight: 500;
+    padding: 0.75rem 1.5rem;
+    transition: all 0.2s ease;
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+  }
+
+  .btn-primary {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+
+    &:hover {
+      background-color: #2563eb;
+      border-color: #2563eb;
+    }
+  }
+
+  .btn-success {
+    background-color: #10b981;
+    border-color: #10b981;
+
+    &:hover {
+      background-color: #059669;
+      border-color: #059669;
+    }
+  }
+
+  .btn-danger {
+    background-color: #ef4444;
+    border-color: #ef4444;
+
+    &:hover {
+      background-color: #dc2626;
+      border-color: #dc2626;
+    }
+  }
+}
+
+// Animações
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+// Responsividade
+@media (max-width: 768px) {
+  .form-container {
+    .btn {
+      width: 100%;
+      margin-bottom: 0.5rem;
+    }
+  }
+}
+
+// Estilos para expansão de salas
+.room-expansion {
+  .expand-button {
+    transition: all 0.2s ease;
+    
+    &:hover {
+      background-color: #f3f4f6;
+    }
+  }
+  
+  .expand-icon {
+    transition: transform 0.2s ease;
+    
+    &.rotated {
+      transform: rotate(90deg);
+    }
+  }
+}
+
+// Estilos para detalhes expandidos
+.room-details {
+  animation: slideDown 0.3s ease-out;
+  
+  .detail-card {
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      border-color: #d1d5db;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+  }
+  
+  .progress-bar {
+    transition: width 0.3s ease;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

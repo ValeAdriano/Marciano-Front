@@ -6,6 +6,7 @@
         Olá {{ displayName() }} 👋
       </span>
     </h1>
+    
     <p class="mt-3 text-gray-700 max-w-3xl mx-auto">
       Crie uma nova sala para iniciar a dinâmica ou acesse os relatórios de salas anteriores.
     </p>
@@ -34,10 +35,10 @@
               formControlName="title"
               autocomplete="off"
               class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
-              [attr.aria-invalid]="form.controls.title.invalid && (form.controls.title.dirty || form.controls.title.touched)"
-              [attr.aria-describedby]="form.controls.title.invalid ? 'title-error' : null"
+              [attr.aria-invalid]="form.controls['title'].invalid && (form.controls['title'].dirty || form.controls['title'].touched)"
+              [attr.aria-describedby]="form.controls['title'].invalid ? 'title-error' : null"
             />
-            <p *ngIf="form.controls.title.invalid && (form.controls.title.dirty || form.controls.title.touched)" id="title-error" class="mt-1 text-sm text-red-600">Informe um nome (mín. 3 caracteres).</p>
+            <p *ngIf="form.controls['title'].invalid && (form.controls['title'].dirty || form.controls['title'].touched)" id="title-error" class="mt-1 text-sm text-red-600">Informe um nome (mín. 3 caracteres).</p>
           </div>
 
           <!-- Código -->
@@ -53,7 +54,7 @@
                   Copiar
                 </button>
               </div>
-              <button type="button" class="inline-flex items-center px-4 py-2 rounded-lg bg-blue-600 text-white font-medium shadow-sm hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 min-w-[140px]" (click)="generateCode()">
+              <button type="button" class="inline-flex items-center px-4 py-1.5 rounded-lg bg-blue-600 text-white font-medium shadow-sm hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 min-w-[140px]" (click)="generateCode()">
                 Gerar código
               </button>
             </div>
@@ -104,19 +105,170 @@
         </div>
       </div>
 
-      <ul class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4" *ngIf="reports().length > 0">
-        <li *ngFor="let r of reports(); trackBy: trackById">
-          <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 flex flex-col gap-1">
-            <div class="text-sm text-gray-500">Criada em {{ r.createdAt | date:'short' }}</div>
-            <div class="font-semibold text-blue-800 truncate">{{ r.title }}</div>
-            <div class="text-sm text-gray-600">Código: <b>{{ r.code }}</b></div>
-            <div class="flex gap-2 mt-2">
-              <a class="inline-flex items-center px-4 py-2 rounded-lg bg-blue-600 text-white font-medium shadow-sm hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-yellow-400" [href]="r.reportUrl" target="_blank" rel="noopener noreferrer">Ver relatório</a>
-              <button type="button" class="inline-flex items-center px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium shadow-sm hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400" (click)="copyText(r.reportUrl)">Copiar link</button>
-            </div>
-          </div>
-        </li>
-      </ul>
+      <div class="mt-4 overflow-x-auto" *ngIf="reports().length > 0">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Nome da Sala
+              </th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Data de Criação
+              </th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Código
+              </th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <ng-container *ngFor="let r of reports(); trackBy: trackById">
+              <tr class="hover:bg-gray-50">
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="flex items-center">
+                    <!-- Botão de Expansão (se não finalizada) -->
+                    <button 
+                      *ngIf="!isRoomFinished(r.code)"
+                      type="button"
+                      class="mr-2 p-1 rounded hover:bg-gray-200 transition-colors"
+                      (click)="toggleRoomExpansion(r.code)"
+                      [attr.title]="isRoomExpanded(r.code) ? 'Recolher detalhes' : 'Expandir detalhes'"
+                    >
+                      <span class="text-gray-600 text-sm transition-transform duration-200"
+                            [class.rotate-180]="isRoomExpanded(r.code)">
+                        ⬇️
+                      </span>
+                    </button>
+                    
+                    <div class="text-sm font-medium text-gray-900 truncate max-w-xs" [title]="r.title">
+                      {{ r.title }}
+                    </div>
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm text-gray-500">
+                    {{ r.createdAt | date:'short' }}
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm text-gray-900 font-mono">
+                    {{ r.code }}
+                  </div>
+                </td>
+              </tr>
+              
+              <!-- Linha de Detalhes Expandidos -->
+              <tr *ngIf="!isRoomFinished(r.code) && isRoomExpanded(r.code)" class="bg-gray-50">
+                <td colspan="3" class="px-6 py-4">
+                  <div class="space-y-4">
+                    <!-- Cabeçalho dos Detalhes -->
+                    <div class="flex items-center justify-between border-b border-gray-200 pb-2">
+                      <h4 class="text-sm font-medium text-gray-900">📋 Detalhes da Sala {{ r.code }}</h4>
+                      <span class="text-xs text-gray-500">{{ getStatusDisplay(getRoomStatus(r.code)?.status || r.status) }}</span>
+                    </div>
+                    
+                    <!-- Grid de Informações -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <!-- Status da Rodada -->
+                      <div class="bg-white p-3 rounded-lg border border-gray-200">
+                        <h5 class="text-xs font-medium text-gray-700 mb-2">🎯 Status da Rodada</h5>
+                        <div class="space-y-1 text-xs">
+                          <div class="flex justify-between">
+                            <span class="text-gray-600">Rodada Atual:</span>
+                            <span class="font-medium">{{ getRoomStatus(r.code)?.current_round || 0 }}/{{ getRoomStatus(r.code)?.max_rounds || 0 }}</span>
+                          </div>
+                          <div class="flex justify-between">
+                            <span class="text-gray-600">Início da Rodada:</span>
+                            <span class="font-medium">{{ getRoomStatus(r.code)?.round_start_time ? (getRoomStatus(r.code)?.round_start_time | date:'dd/MM HH:mm') : 'N/A' }}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <!-- Participantes -->
+                      <div class="bg-white p-3 rounded-lg border border-gray-200">
+                        <h5 class="text-xs font-medium text-gray-700 mb-2">👥 Participantes</h5>
+                        <div class="space-y-1 text-xs">
+                          <div class="flex justify-between">
+                            <span class="text-gray-600">Total:</span>
+                            <span class="font-medium">{{ getRoomStatus(r.code)?.participants_count || 0 }}</span>
+                          </div>
+                          <div class="flex justify-between">
+                            <span class="text-gray-600">Esperados:</span>
+                            <span class="font-medium">{{ getRoomStatus(r.code)?.round_progress?.participants || 0 }}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <!-- Progresso da Votação -->
+                      <div class="bg-white p-3 rounded-lg border border-gray-200">
+                        <h5 class="text-xs font-medium text-gray-700 mb-2">🗳️ Progresso da Votação</h5>
+                        <div class="space-y-2 text-xs">
+                          <div class="flex justify-between">
+                            <span class="text-gray-600">Votos Atuais:</span>
+                            <span class="font-medium">{{ getRoomStatus(r.code)?.round_progress?.current_votes || 0 }}</span>
+                          </div>
+                          <div class="flex justify-between">
+                            <span class="text-gray-600">Votos Esperados:</span>
+                            <span class="text-gray-600">{{ getRoomStatus(r.code)?.round_progress?.expected_votes || 0 }}</span>
+                          </div>
+                          <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                                 [style.width.%]="getRoomStatus(r.code)?.round_progress?.progress_pct || 0"></div>
+                          </div>
+                          <div class="text-center text-xs text-gray-600">
+                            {{ getRoomStatus(r.code)?.round_progress?.progress_pct || 0 }}% completo
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <!-- Ações Rápidas -->
+                    <div class="bg-white p-3 rounded-lg border border-gray-200">
+                      <h5 class="text-xs font-medium text-gray-700 mb-2">⚡ Ações Rápidas</h5>
+                      <div class="flex flex-wrap gap-2">
+                        <button 
+                          type="button"
+                          class="inline-flex items-center px-3 py-1 rounded bg-green-600 text-white text-xs font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                          (click)="advanceToNextRound(r.code)"
+                          title="Avançar para próxima rodada"
+                        >
+                          ⏭️ Avançar Rodada
+                        </button>
+                        
+                        <button 
+                          type="button"
+                          class="inline-flex items-center px-3 py-1 rounded bg-orange-600 text-white text-xs font-medium hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          (click)="forceFinishRound(r.code)"
+                          title="Finalizar rodada forçadamente"
+                        >
+                          ⏹️ Finalizar Rodada
+                        </button>
+                        
+                        <button 
+                          type="button"
+                          class="inline-flex items-center px-3 py-1 rounded bg-yellow-600 text-white text-xs font-medium hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                          (click)="clearAllVotes(r.code)"
+                          title="Limpar todos os votos"
+                        >
+                          🗳️ Limpar Votos
+                        </button>
+                        
+                        <button 
+                          type="button"
+                          class="inline-flex items-center px-3 py-1 rounded bg-red-600 text-white text-xs font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                          (click)="forceFinishRoom(r.code)"
+                          title="Finalizar sala forçadamente"
+                        >
+                          🏁 Finalizar Sala
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </ng-container>
+          </tbody>
+        </table>
+      </div>
     </div>
   </section>
 </main>
