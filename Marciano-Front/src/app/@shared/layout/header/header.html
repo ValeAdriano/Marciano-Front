@@ -1,0 +1,33 @@
+<header class="sticky top-0 z-50 bg-blue-600 shadow-md">
+  <div class="max-w-6xl mx-auto px-4">
+    <div class="h-14 flex items-center justify-between">
+      <!-- Branding -->
+      <a routerLink="/" class="flex items-center gap-2">
+        <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-yellow-400 text-blue-900 font-semibold">
+          QA
+        </span>
+        <span class="font-semibold text-white tracking-tight">OCTAGOON</span>
+      </a>
+
+      <!-- Navegação (simples) -->
+      <nav class="hidden md:flex items-center gap-6 text-sm">
+        <a routerLink="/" [routerLinkActiveOptions]="{ exact: true }"
+           routerLinkActive="text-yellow-300"
+           class="text-white hover:text-yellow-300 transition">Início</a>
+
+        <a routerLink="/r/demo/entrada"
+           routerLinkActive="text-yellow-300"
+           class="text-white hover:text-yellow-300 transition">Entrar</a>
+
+        <a routerLink="/sobre"
+           routerLinkActive="text-yellow-300"
+           class="text-white hover:text-yellow-300 transition">Sobre</a>
+
+        <a routerLink="/criar-sala"
+           class="inline-flex items-center rounded-md bg-green-500 text-white px-3 py-1.5 font-medium shadow-sm hover:bg-green-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 transition">
+          Criar sala
+        </a>
+      </nav>
+    </div>
+  </div>
+</header>

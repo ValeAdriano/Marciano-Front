@@ -1,0 +1,165 @@
+.uno {
+  background: #fff;
+  min-height: 100vh;
+}
+
+/* HUD */
+.hud-box {
+  background: #fff;
+  border: 2px solid #e5e7eb;
+  border-radius: 16px;
+  padding: .5rem .75rem;
+  color: #1e293b;
+  min-width: 140px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+.hud-label { font-size: 12px; color: #475569; }
+.hud-value { font-weight: 800; color: #2563eb; }
+
+/* Mesa */
+.mesa {
+  background: #fff;
+  border: 2px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  color: #1e293b;
+}
+
+/* Cartões/Alvos estilo UNO */
+.uno-card {
+  position: relative;
+  border: 2px solid #e5e7eb;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  background: #fff;
+  overflow: hidden;
+  user-select: none;
+}
+
+.alvo-drop {
+  padding: .75rem;
+  background: #fff;
+  border: 2px solid #c6c8cc;
+  min-height: 86px;
+}
+
+.chip {
+  width: 2.25rem; height: 2.25rem;
+  border-radius: 999px;
+  font-weight: 900;
+  color: #1e293b;
+  display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+
+/* Pill com carta atribuída */
+.assigned-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .25rem .5rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #1e293b;
+  font-size: .75rem;
+}
+.pill-dot {
+  width: 10px; height: 10px; border-radius: 999px;
+  box-shadow: 0 0 0 2px #e5e7eb;
+}
+.pill-x {
+  margin-left: .25rem;
+  background: transparent;
+  border: 0;
+  color: #ef4444;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+/* ---------- MÃO DO JOGADOR: Swiper ---------- */
+.mao-container {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  padding: 14px 12px 20px;
+  pointer-events: none;
+  z-index: 50;
+}
+.mao-inner { max-width: 1200px; margin: 0 auto; }
+.mao { pointer-events: auto; position: relative; }
+
+/* Permite que o navegador otimize gestos horizontais */
+.mao-swiper {
+  width: 100%;
+  padding: 8px 16px 16px;
+  overflow: hidden;
+  touch-action: pan-x;
+}
+
+.mao-swiper .swiper-wrapper { align-items: stretch; }
+.mao-swiper .swiper-slide {
+  width: 280px;
+  max-width: 90vw;
+  display: flex;
+  justify-content: center;
+  cursor: grab;      /* feedback de “arrastar para rolar” */
+}
+.mao-swiper .swiper-slide:active {
+  cursor: grabbing;
+}
+
+/* Carta visual */
+.carta.uno-card {
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.carta.uno-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 26px rgba(0,0,0,.28), 0 6px 14px rgba(0,0,0,.22);
+}
+.carta.uno-card.raised {
+  transform: translateY(-14px) scale(1.02);
+  box-shadow: 0 16px 28px rgba(0,0,0,.32), 0 8px 16px rgba(0,0,0,.24);
+}
+
+.carta .carta-conteudo {
+  display: flex; gap: .5rem; align-items: center;
+  padding: .75rem .9rem;
+}
+.carta .ponto {
+  width: 14px; height: 14px; border-radius: 999px;
+  box-shadow: 0 0 0 2px #fff, 0 2px 6px rgba(0,0,0,.25);
+}
+.carta .texto {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+/* Gradientes por cor (vivas) */
+.carta.laranja   { background: linear-gradient(135deg, #ffd6a5, #ffb347); }
+.carta.verde     { background: linear-gradient(135deg, #bbf7d0, #22c55e); }
+.carta.amarelo   { background: linear-gradient(135deg, #fff700, #fde047); }
+.carta.azul      { background: linear-gradient(135deg, #60a5fa, #2563eb); }
+.carta.vermelho  { background: linear-gradient(135deg, #f87171, #ef4444); }
+.carta.roxo      { background: linear-gradient(135deg, #c084fc, #8b5cf6); }
+
+/* Drag preview/placeholder */
+.preview { opacity: .95; transform: rotate(-3deg) scale(1.02); }
+.placeholder {
+  width: 150px; height: 64px;
+  border: 2px dashed #009eb0;
+  border-radius: 16px;
+}
+
+/* Efeitos de drag */
+.cdk-drag-preview { z-index: 60; }
+.cdk-drag-animating { transition: transform .2s ease; }
+
+/* Alvo “em foco” quando arrastando */
+.cdk-drop-list.cdk-drop-list-dragging .alvo-drop {
+  outline: 2px dashed #2563eb;
+  outline-offset: 6px;
+}
+
+/* Responsivo */
+@media (max-width: 640px) {
+  .mao-swiper { padding: 8px 12px 16px; }
+}

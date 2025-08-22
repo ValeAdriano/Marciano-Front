@@ -1,0 +1,244 @@
+<!-- Header -->
+<section class="max-w-6xl mx-auto px-3 sm:px-4 pt-8 pb-6">
+  <div class="text-center">
+    <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">
+      <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-yellow-500 to-green-600">
+        Resultados — Desempenho Individual
+      </span>
+    </h1>
+    <p class="mt-2 text-gray-700">
+      As estatísticas são exibidas apenas após o término de todas as rodadas.
+    </p>
+  </div>
+</section>
+
+<section class="max-w-6xl mx-auto px-3 sm:px-4 pb-16">
+  <!-- Estado de carregamento -->
+  @if (isLoading()) {
+    <div class="bg-white rounded-2xl shadow-card ring-1 ring-black/5 p-6 text-center">
+      <div class="flex items-center justify-center">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span class="ml-3 text-gray-700">Carregando resultados...</span>
+      </div>
+    </div>
+  } @else if (hasError()) {
+    <!-- Estado de erro -->
+    <div class="bg-white rounded-2xl shadow-card ring-1 ring-black/5 p-6 text-center">
+      <div class="text-red-600 mb-4">
+        <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+        </svg>
+      </div>
+      <h3 class="text-lg font-medium text-gray-900 mb-2">Erro ao carregar resultados</h3>
+      <p class="text-gray-700">
+        Não foi possível carregar os resultados da sala. Verifique se o código da sala está correto.
+      </p>
+    </div>
+  } @else if (!allRoundsFinished()) {
+    <!-- Resultados indisponíveis -->
+    <div class="bg-white rounded-2xl shadow-card ring-1 ring-black/5 p-6 text-center">
+      <p class="text-gray-700">
+        Resultados indisponíveis. Aguarde o encerramento de todas as rodadas.
+      </p>
+    </div>
+  } @else {
+    <!-- Informações da sala -->
+    @if (roomInfo()) {
+      <div class="mb-6 bg-white rounded-2xl shadow-card ring-1 ring-black/5 p-4 sm:p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-semibold text-blue-800">{{ roomInfo()?.room_title }}</h2>
+            <p class="text-sm text-gray-600 mt-1">
+              Código: <span class="font-mono font-medium">{{ roomInfo()?.room_code }}</span> • 
+              Participantes: <span class="font-medium">{{ roomInfo()?.total_participants }}</span>
+            </p>
+          </div>
+          <div class="text-right">
+            <p class="text-sm text-gray-600">Seus resultados</p>
+            <p class="text-lg font-semibold text-blue-800">{{ total() }} votos recebidos</p>
+          </div>
+        </div>
+      </div>
+    }
+
+    <div class="grid md:grid-cols-3 gap-6">
+      <!-- Bloco do gráfico + switch -->
+      <div class="md:col-span-2 bg-white rounded-2xl shadow-card ring-1 ring-black/5 p-4 sm:p-6">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-semibold text-blue-800">Suas cartas recebidas por planeta</h2>
+            <div class="mt-1 text-sm text-gray-600">
+              Total: <span class="font-medium text-gray-900">{{ total() }}</span>
+            </div>
+          </div>
+
+          <!-- Switch (ícones) -->
+          <div class="inline-flex rounded-xl border border-gray-200 overflow-hidden">
+            <button
+              type="button"
+              class="px-3 py-2 text-sm font-medium"
+              [class.bg-blue-50]="chartType() === 'bar'"
+              (click)="setChart('bar')"
+              title="Barras horizontais"
+              aria-label="Barras horizontais"
+            >
+              <svg class="h-5 w-5 text-blue-700" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <rect x="3" y="5" width="14" height="2" rx="1"></rect>
+                <rect x="3" y="11" width="18" height="2" rx="1"></rect>
+                <rect x="3" y="17" width="10" height="2" rx="1"></rect>
+              </svg>
+            </button>
+            <button
+              type="button"
+              class="px-3 py-2 text-sm font-medium border-l border-gray-200"
+              [class.bg-blue-50]="chartType() === 'doughnut'"
+              (click)="setChart('doughnut')"
+              title="Pizza"
+              aria-label="Pizza"
+            >
+              <svg class="h-5 w-5 text-blue-700" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M11 2a10 10 0 1 0 10 10h-8a2 2 0 0 1-2-2V2z"></path>
+                <path d="M13 2.05A10.004 10.004 0 0 1 21.95 11H13V2.05z" class="opacity-70"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+
+        <!-- Canvas -->
+        <div class="mt-4" [style.height.px]="chartHeight()">
+          <canvas #chartEl aria-label="Gráfico por planeta" role="img"></canvas>
+        </div>
+      </div>
+
+      <!-- Resumo por planeta -->
+      <div class="bg-white rounded-2xl shadow-card ring-1 ring-black/5 p-4 sm:p-6">
+        <h3 class="text-lg font-semibold text-blue-800">Seu resumo</h3>
+        <ul class="mt-4 space-y-3">
+          <!-- Ordem fixa: Azul, Amarelo, Verde, Laranja, Vermelho, Roxo -->
+          <li class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="inline-block h-3 w-3 rounded-full" [style.background]="colorHex.Azul"></span>
+              <span class="text-gray-900">{{ qualidadeLabel('Azul') }}</span>
+              <span class="text-xs text-gray-500">· Azul</span>
+            </div>
+            <span class="font-medium text-gray-900">{{ ctAzul() }}</span>
+          </li>
+
+          <li class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="inline-block h-3 w-3 rounded-full" [style.background]="colorHex.Amarelo"></span>
+              <span class="text-gray-900">{{ qualidadeLabel('Amarelo') }}</span>
+              <span class="text-xs text-gray-500">· Amarelo</span>
+            </div>
+            <span class="font-medium text-gray-900">{{ ctAmarelo() }}</span>
+          </li>
+
+          <li class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="inline-block h-3 w-3 rounded-full" [style.background]="colorHex.Verde"></span>
+              <span class="text-gray-900">{{ qualidadeLabel('Verde') }}</span>
+              <span class="text-xs text-gray-500">· Verde</span>
+            </div>
+            <span class="font-medium text-gray-900">{{ ctVerde() }}</span>
+          </li>
+
+          <li class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="inline-block h-3 w-3 rounded-full" [style.background]="colorHex.Laranja"></span>
+              <span class="text-gray-900">{{ qualidadeLabel('Laranja') }}</span>
+              <span class="text-xs text-gray-500">· Laranja</span>
+            </div>
+            <span class="font-medium text-gray-900">{{ ctLaranja() }}</span>
+          </li>
+
+          <li class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="inline-block h-3 w-3 rounded-full" [style.background]="colorHex.Vermelho"></span>
+              <span class="text-gray-900">{{ qualidadeLabel('Vermelho') }}</span>
+              <span class="text-xs text-gray-500">· Vermelho</span>
+            </div>
+            <span class="font-medium text-gray-900">{{ ctVermelho() }}</span>
+          </li>
+
+          <li class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="inline-block h-3 w-3 rounded-full" [style.background]="colorHex.Roxo"></span>
+              <span class="text-gray-900">{{ qualidadeLabel('Roxo') }}</span>
+              <span class="text-xs text-gray-500">· Roxo</span>
+            </div>
+            <span class="font-medium text-gray-900">{{ ctRoxo() }}</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Tabela por participante -->
+    @if (participants().length > 0) {
+      <div class="mt-6 bg-white rounded-2xl shadow-card ring-1 ring-black/5 p-4 sm:p-6">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-semibold text-blue-800">Resultados dos outros participantes</h3>
+          <span class="text-sm text-gray-600">Distribuição de votos por planeta (cores originais)</span>
+        </div>
+
+        <div class="mt-4 overflow-x-auto">
+          <table class="min-w-full text-left text-sm">
+            <thead class="text-xs text-gray-600">
+              <tr>
+                <th class="py-2 pr-4 font-medium">Participante</th>
+                <th class="py-2 pr-4 font-medium w-[360px]">Distribuição</th>
+                <th class="py-2 pr-4 font-medium text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              @for (p of participants(); track p.id) {
+                <tr class="align-middle">
+                  <td class="py-3 pr-4">
+                    <div class="flex items-center gap-3">
+                      <span
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-full"
+                        [style.backgroundColor]="p.envelopeHex"
+                        aria-hidden="true"
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true" class="h-4 w-4 text-white">
+                          <path
+                            fill="currentColor"
+                            d="M12 12c2.761 0 5-2.686 5-6s-2.239-6-5-6-5 2.686-5 6 2.239 6 5 6zm0 2c-4.418 0-8 2.686-8 6v2h16v-2c0-3.314-3.582-6-8-6z"
+                          />
+                        </svg>
+                      </span>
+                      <span class="font-medium text-gray-900">{{ p.name }}</span>
+                    </div>
+                  </td>
+
+                  <td class="py-3 pr-4">
+                    <div
+                      class="h-3 w-[360px] rounded-full ring-1 ring-black/5"
+                      [style.background]="barGradient(p.votesByColor)"
+                      [attr.aria-label]="barAria(p.votesByColor)"
+                      role="img"
+                    ></div>
+                  </td>
+
+                  <td class="py-3 pr-0 text-right font-medium text-gray-900">
+                    {{
+                      (p.votesByColor.Azul + p.votesByColor.Amarelo + p.votesByColor.Verde +
+                       p.votesByColor.Laranja + p.votesByColor.Vermelho + p.votesByColor.Roxo)
+                    }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    } @else {
+      <!-- Sem outros participantes -->
+      <div class="mt-6 bg-white rounded-2xl shadow-card ring-1 ring-black/5 p-4 sm:p-6 text-center">
+        <p class="text-gray-700">
+          Você é o único participante nesta sala.
+        </p>
+      </div>
+    }
+  }
+</section>

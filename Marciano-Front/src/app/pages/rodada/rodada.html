@@ -1,0 +1,194 @@
+<main class="uno min-h-screen">
+  <!-- Header -->
+  <section class="max-w-6xl mx-auto px-3 sm:px-4 pt-6 sm:pt-10 pb-4 sm:pb-6">
+    <section class="max-w-6xl mx-auto px-3 sm:px-4 pt-8 pb-6">
+      <div class="text-center">
+        <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">
+          <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-yellow-500 to-green-600">
+            Rodada {{ rodadaNumero() }} — Votação
+          </span>
+        </h1>
+        <p class="mt-2 text-gray-700">
+          Você não pode votar em si mesmo. Anonimato:
+          <span class="font-semibold text-emerald-300">Ativado</span>
+        </p>
+
+        <!-- Status da Sala e Progresso da Votação -->
+        <div class="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200" *ngIf="roomStatus()">
+          <div class="text-sm text-blue-800">
+            <p><strong>Status:</strong> {{ getStatusDisplay(roomStatus()?.status) }}</p>
+            <p><strong>Rodada:</strong> {{ rodadaNumero() }}/{{ totalRodadas() }}</p>
+            <p><strong>Participantes:</strong> {{ roomStatus()?.participants_count }}</p>
+            
+            <!-- Progresso Geral das Rodadas -->
+            <div class="mt-3 p-2 bg-blue-100 rounded border border-blue-300">
+              <div class="flex justify-between text-xs mb-1">
+                <span>Progresso Geral das Rodadas</span>
+                <span>{{ rodadaNumero() }}/{{ totalRodadas() }}</span>
+              </div>
+              <div class="w-full bg-blue-200 rounded-full h-2">
+                <div class="bg-gradient-to-r from-blue-600 to-green-600 h-2 rounded-full transition-all duration-300"
+                     [style.width.%]="getOverallProgressPercentage()"></div>
+              </div>
+              <div class="text-xs text-center mt-1">
+                {{ getOverallProgressPercentage() }}% das rodadas completas
+              </div>
+            </div>
+            
+            <div class="mt-2" *ngIf="roomStatus()?.round_progress">
+              <div class="flex justify-between text-xs mb-1">
+                <span>Progresso da Votação</span>
+                <span>{{ roomStatus()?.round_progress?.current_votes ?? 0 }}/{{ roomStatus()?.round_progress?.expected_votes ?? 0 }}</span>
+              </div>
+              <div class="w-full bg-blue-200 rounded-full h-2">
+                <div class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                     [style.width.%]="getProgressPercentage()"></div>
+              </div>
+              <div class="text-xs text-center mt-1">
+                {{ getProgressPercentage() }}% completo
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Linha com esquerda (código + tempo) e direita (perfil do usuário) -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
+      <!-- ESQUERDA: Código + Tempo -->
+      <div class="flex items-stretch gap-2 sm:gap-3">
+        <div class="hud-box">
+          <div class="hud-label">Código da Sala</div>
+          <div class="hud-value tracking-widest">{{ roomCode() }}</div>
+        </div>
+
+        <div class="hud-box min-w-[160px]">
+          <div class="hud-label">Tempo da Rodada</div>
+          <div class="hud-value text-emerald-300" aria-live="polite">{{ timeLabel() }}</div>
+          <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-700/60" aria-hidden="true">
+            <div class="h-full bg-gradient-to-r from-emerald-400 via-amber-300 to-sky-400"
+                 [style.width.%]="progress() * 100"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DIREITA: Perfil do usuário (somente nome + ícone na cor do envelope) -->
+      <div class="md:ml-auto flex flex-col md:flex-row gap-2 sm:gap-3 items-end md:items-center">
+        <div class="bg-white/95 backdrop-blur rounded-2xl shadow-card ring-1 ring-black/5 px-4 py-3">
+          <div class="flex items-center gap-3">
+            <span class="inline-flex h-9 w-9 items-center justify-center rounded-full"
+                  [style.backgroundColor]="session()?.envelopeHex || '#0067b1'">
+              <svg viewBox="0 0 24 24" aria-hidden="true" class="h-5 w-5 text-white">
+                <path fill="currentColor"
+                      d="M12 12c2.761 0 5-2.686 5-6s-2.239-6-5-6-5 2.686-5 6 2.239 6 5 6zm0 2c-4.418 0-8 2.686-8 6v2h16v-2c0-3.314-3.582-6-8-6z"/>
+              </svg>
+            </span>
+            <div class="min-w-0">
+              <div class="font-medium text-slate-900 truncate">
+                {{ session()?.name || '—' }}
+              </div>
+              <!-- ID removido conforme pedido -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tabuleiro: alvos -->
+  <section class="max-w-6xl mx-auto px-3 sm:px-4 pb-40">
+    <div class="mesa p-4 sm:p-6 rounded-2xl">
+      <h2 class="text-base sm:text-lg font-semibold text-white/90">
+        Toque numa carta para levantá-la e arraste para um alvo
+      </h2>
+
+      <ul class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 lg:grid-cols-4">
+        <li *ngFor="let a of alvos(); trackBy: trackById" class="relative">
+          <div
+            class="alvo-drop uno-card alvo flex items-center gap-3"
+            cdkDropList
+            [id]="targetListId(a.id)"
+            [cdkDropListData]="assigned[a.id]"
+            [cdkDropListConnectedTo]="connectedTo()"
+            [cdkDropListEnterPredicate]="canEnterTarget(a.id)"
+            (cdkDropListDropped)="onDropToTarget($event, a)">
+
+            <!-- Avatar: ícone de perfil com fundo na cor do envelope (formato dos "cards" pedido) -->
+            <span class="inline-flex h-9 w-9 items-center justify-center rounded-full"
+                  [style.backgroundColor]="colorHex[a.envelope]">
+              <svg viewBox="0 0 24 24" aria-hidden="true" class="h-5 w-5 text-white">
+                <path fill="currentColor"
+                      d="M12 12c2.761 0 5-2.686 5-6s-2.239-6-5-6-5 2.686-5 6 2.239 6 5 6zm0 2c-4.418 0-8 2.686-8 6v2h16v-2c0-3.314-3.582-6-8-6z"/>
+              </svg>
+            </span>
+
+            <div class="min-w-0">
+              <div class="font-semibold text-black truncate">{{ a.nome }}</div>
+
+              <div class="mt-1">
+                <div *ngIf="assigned[a.id].length"
+                     class="mt-2 assigned-pill"
+                     [style.borderColor]="colorHex[assigned[a.id][0].cor]">
+                  <span class="pill-dot" [style.background]="colorHex[assigned[a.id][0].cor]"></span>
+                  <span class="text-black">{{ assigned[a.id][0].texto }}</span>
+                  <button type="button" class="pill-x text-gray-300" title="Remover"
+                          (click)="removerDoAlvo(a.id)">×</button>
+                </div>
+                <div *ngIf="!assigned[a.id].length" class="text-s text-gray-500">Solte aqui</div>
+              </div>
+            </div>
+          </div>
+        </li>
+      </ul>
+
+    </div>
+  </section>
+
+  <!-- MÃO DO JOGADOR: Swiper horizontal -->
+  <section class="mao-container">
+    <div class="mao-inner">
+      <div class="mao"
+           cdkDropList
+           [id]="handListId"
+           [cdkDropListData]="hand()"
+           [cdkDropListConnectedTo]="connectedTo()">
+
+        <div class="swiper mao-swiper">
+          <div class="swiper-wrapper" style="padding-top: 10px;">
+            <div class="swiper-slide"
+                 *ngFor="let c of hand(); trackBy: trackById"
+                 cdkDrag
+                 [cdkDragData]="c"
+                 [cdkDragDisabled]="selectedCardId() !== c.id"
+                 (cdkDragStarted)="onDragStarted($event)"
+                 (cdkDragEnded)="onDragEnded($event)">
+              <div class="carta uno-card"
+                   [ngClass]="[c.cor.toLowerCase(), selectedCardId() === c.id ? 'raised no-swipe' : '']"
+                   [attr.data-swiper-no-swiping]="selectedCardId() === c.id ? 'true' : null"
+                   (click)="onCardClick(c.id)">
+                <div class="carta-conteudo">
+                  <span class="ponto" [style.background]="colorHex[c.cor]"></span>
+                  <span class="texto">{{ c.texto }}</span>
+                </div>
+              </div>
+
+              <ng-template cdkDragPreview>
+                <div class="carta uno-card preview" [ngClass]="c.cor.toLowerCase()">
+                  <div class="carta-conteudo">
+                    <span class="ponto" [style.background]="colorHex[c.cor]"></span>
+                    <span class="texto">{{ c.texto }}</span>
+                  </div>
+                </div>
+              </ng-template>
+
+              <ng-template cdkDragPlaceholder>
+                <div class="carta placeholder"></div>
+              </ng-template>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+</main>
