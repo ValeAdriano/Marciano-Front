@@ -1,0 +1,34 @@
+// Estilos específicos para a página home
+
+.shadow-card {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+// Estilos para o SweetAlert2 customizado
+:global(.custom-swal-popup) {
+  border-radius: 1rem !important;
+}
+
+// Estilos para os campos de formulário
+input, select {
+  transition: all 0.2s ease-in-out;
+  
+  &:focus {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+}
+
+// Estilos para o botão de submit
+button[type="submit"] {
+  transition: all 0.2s ease-in-out;
+  
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+} 

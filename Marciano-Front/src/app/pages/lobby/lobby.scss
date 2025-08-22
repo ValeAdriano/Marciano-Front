@@ -1,0 +1,56 @@
+// Estilos específicos para a página lobby
+
+.shadow-card {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+// Estilos para o SweetAlert2 customizado
+:global(.swal-copy-popup) {
+  border-radius: 1rem !important;
+}
+
+// Estilos para os botões
+button {
+  transition: all 0.2s ease-in-out;
+  
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+}
+
+// Estilos para as barras de progresso
+.progress-bar {
+  transition: width 0.3s ease-in-out;
+}
+
+// Estilos para os avatares dos participantes
+.participant-avatar {
+  transition: transform 0.2s ease-in-out;
+  
+  &:hover {
+    transform: scale(1.05);
+  }
+}
+
+// Estilos para os status dos participantes
+.status-badge {
+  transition: all 0.2s ease-in-out;
+  
+  &.connected {
+    animation: pulse 2s infinite;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+} 
