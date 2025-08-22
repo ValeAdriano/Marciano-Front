@@ -26,7 +26,8 @@
             "styles": [
               "src/styles.scss"
             ],
-            "outputMode": "static"
+            "outputMode": "static",
+            "index": "src/index.html"
           },
           "configurations": {
             "production": {
