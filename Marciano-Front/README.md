@@ -238,6 +238,9 @@ npm run build
 - **Otimização automática** de assets
 - **Tree shaking** para redução de bundle
 - **Lazy loading** de módulos
+- **Servidor Express** com configurações de segurança
+- **Healthcheck** para monitoramento
+- **Rate limiting** e proteção contra ataques
 
 ---
 
@@ -275,8 +278,8 @@ services:
 
 ### **Arquivos Docker**
 
-- **`Dockerfile`** - Multi-stage build com Node.js + Nginx
-- **`nginx.conf`** - Configuração otimizada para SPA
+- **`Dockerfile`** - Multi-stage build com Node.js + Express (mais seguro)
+- **`server.js`** - Servidor Express com configurações de segurança
 - **`.dockerignore`** - Exclusões para build eficiente
 
 ---
@@ -313,7 +316,9 @@ Marciano-Front/
 ├── 📄 tailwind.config.js         # Configuração Tailwind
 ├── 📄 tsconfig.json              # Configuração TypeScript
 ├── 📄 Dockerfile                 # Configuração Docker
-├── 📄 nginx.conf                 # Configuração Nginx
+├── 📄 server.js                  # Servidor Express com segurança
+├── 📄 railway.json               # Configuração Railway
+├── 📄 security.config.js         # Configurações de segurança
 └── 📄 README.md                  # Este arquivo
 ```
 

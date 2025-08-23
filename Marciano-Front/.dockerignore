@@ -9,6 +9,14 @@ coverage
 .nyc_output
 .coverage
 .coverage/
-dist
 .angular
 .angular/
+src/
+tests/
+*.spec.ts
+*.test.ts
+karma.conf.js
+tailwind.config.js
+postcss.config.js
+tsconfig*.json
+angular.json

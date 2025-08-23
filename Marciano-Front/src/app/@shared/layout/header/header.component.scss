@@ -1,0 +1,48 @@
+/* Estilos específicos do header */
+:host {
+  display: block;
+}
+
+/* Animações suaves para o menu mobile */
+.menu-mobile-enter {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.menu-mobile-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 200ms ease-out, transform 200ms ease-out;
+}
+
+/* Melhorias de acessibilidade */
+button:focus-visible {
+  outline: 2px solid #0ea5e9;
+  outline-offset: 2px;
+}
+
+/* Hover states aprimorados */
+a:hover {
+  transform: translateY(-1px);
+  transition: transform 150ms ease-out;
+}
+
+/* Responsividade adicional */
+@media (max-width: 640px) {
+  .max-w-6xl {
+    max-width: 100%;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+/* Gradiente mais suave */
+.bg-gradient-to-b {
+  background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 100%);
+}
+
+/* Sombra sutil */
+.border-sky-100\/80 {
+  border-color: rgba(186, 230, 253, 0.8);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
