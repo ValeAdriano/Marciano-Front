@@ -2,8 +2,8 @@
   <!-- Header / Saudação -->
   <section class="max-w-5xl mx-auto px-4 pt-10 pb-6 text-center">
     <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">
-      <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-yellow-500 to-green-600">
-        Olá {{ displayName() }} 👋
+      <span class="bg-clip-text text-transparent bg-[linear-gradient(to_right,_#2563eb,_#f97316,_#eab308,_#16a34a,_#ef4444,_#7c3aed)]">
+        Olá Marciano 👋
       </span>
     </h1>
     
@@ -339,7 +339,7 @@
           
           <!-- Gráfico de Resultados -->
           <div class="bg-gray-50 rounded-lg p-4">
-            <h4 class="text-lg font-semibold text-gray-800 mb-4">📈 Resumo de Votos por Cor</h4>
+            <h4 class="text-lg font-semibold text-gray-800 mb-4">📈 Resumo de Votos por Planeta</h4>
             <div class="h-80">
               <canvas #resultsChartCanvas></canvas>
             </div>
@@ -348,9 +348,9 @@
           <!-- Estatísticas Detalhadas -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            <!-- Resumo por Cor -->
+            <!-- Resumo por Planeta -->
             <div class="bg-white rounded-lg border border-gray-200 p-4">
-              <h4 class="text-lg font-semibold text-gray-800 mb-4">🎨 Votos por Cor</h4>
+              <h4 class="text-lg font-semibold text-gray-800 mb-4">🎨 Votos por Planeta</h4>
               <div class="space-y-3">
                 <div *ngFor="let colorResult of getAggregatedResults(currentResults()!)" class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div class="flex items-center">
