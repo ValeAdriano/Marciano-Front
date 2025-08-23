@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { takeUntil, Subject } from 'rxjs';
-import { CriarSalaService, CreateRoomRequest, Room, RoomReport, RoomStatus, RoomResults, ColorResult } from './criar-sala.service';
+import { CriarSalaService, CreateRoomRequest, Room, RoomReport, RoomStatus, RoomResults } from './criar-sala.service';
 import Swal from 'sweetalert2';
 import Chart from 'chart.js/auto';
 import jsPDF from 'jspdf';
@@ -17,16 +17,16 @@ import jsPDF from 'jspdf';
 })
 export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
   @ViewChild('resultsChartCanvas', { static: false }) resultsChartCanvas!: ElementRef<HTMLCanvasElement>;
-  
+
   private readonly destroy$ = new Subject<void>();
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
   private readonly criarSalaService = inject(CriarSalaService);
-  
-  // Formulário reativo - mantendo o nome 'form' como no HTML
+
+  // Formulário
   form!: FormGroup;
 
-  // Signals para o template - mantendo o padrão original
+  // Signals
   readonly code = signal<string>('');
   readonly creating = signal<boolean>(false);
   readonly createdRoom = signal<Room | null>(null);
@@ -44,60 +44,41 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
   readonly loadingResults = signal<boolean>(false);
   private resultsChart: Chart | null = null;
 
-
-  // Computed values
+  // Computed
   readonly displayName = computed(() => 'Usuário');
 
   ngOnInit(): void {
     this.initForm();
-    this.generateCode(); // Gera código automaticamente
-    this.loadReports(); // Carrega relatórios existentes
+    this.generateCode();
+    this.loadReports();
   }
 
-  ngAfterViewInit(): void {
-    // Inicialização após a view estar pronta
-  }
+  ngAfterViewInit(): void {}
 
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    
-    // Destruir gráfico se existir
-    if (this.resultsChart) {
-      this.resultsChart.destroy();
-    }
+    if (this.resultsChart) this.resultsChart.destroy();
   }
 
-  /**
-   * Inicializa o formulário
-   */
+  // -------------------- Form / Código --------------------
+
   private initForm(): void {
     this.form = this.fb.group({
       title: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]]
     });
   }
 
-  /**
-   * Gera um código único para a sala
-   * 6 caracteres alfanuméricos, evitando confusões (sem I/1/O/0)
-   */
   generateRoomCode(): string {
     const alphabet = '23456789';
     let code = '';
-    for (let i = 0; i < 6; i++) {
-      code += alphabet[Math.floor(Math.random() * alphabet.length)];
-    }
+    for (let i = 0; i < 6; i++) code += alphabet[Math.floor(Math.random() * alphabet.length)];
     return code;
   }
 
-  /**
-   * Gera um novo código para a sala
-   */
   generateCode(): void {
     const newCode = this.generateRoomCode();
     this.code.set(newCode);
-    
-    // Mostra notificação de sucesso
     Swal.fire({
       icon: 'success',
       title: 'Código Gerado!',
@@ -110,15 +91,10 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
-  /**
-   * Copia o código da sala para a área de transferência
-   */
   copyCode(): void {
     const codeValue = this.code();
     if (!codeValue) return;
-
     navigator.clipboard.writeText(codeValue).then(() => {
-      // Notificação de sucesso
       Swal.fire({
         icon: 'success',
         title: 'Código Copiado!',
@@ -126,12 +102,10 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
         toast: true,
         position: 'top-end',
         showConfirmButton: false,
-        timer: 3000,
-        timerProgressBar: true
+        timer: 3000
       });
     }).catch((error) => {
       console.error('Erro ao copiar código:', error);
-      // Notificação de erro
       Swal.fire({
         icon: 'error',
         title: 'Erro ao Copiar',
@@ -144,9 +118,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
-  /**
-   * Copia texto para a área de transferência
-   */
   copyText(text: string): void {
     navigator.clipboard.writeText(text).then(() => {
       Swal.fire({
@@ -172,12 +143,10 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
-  /**
-   * Cria a sala
-   */
+  // -------------------- Criação / Ações --------------------
+
   onCreateRoom(): void {
     if (this.form.invalid || !this.code()) {
-      // Mostra erro de validação
       Swal.fire({
         icon: 'warning',
         title: 'Formulário Inválido',
@@ -193,18 +162,15 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     const request: CreateRoomRequest = {
       code: this.code().trim(),
       title: this.form.get('title')?.value.trim(),
-      isAnonymous: false // Valor fixo por enquanto
+      isAnonymous: false
     };
 
     this.criarSalaService.createRoom(request)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (room: Room) => {
-          console.log('Sala criada com sucesso:', room);
           this.creating.set(false);
           this.createdRoom.set(room);
-          
-          // Mostra sucesso
           Swal.fire({
             icon: 'success',
             title: 'Sala Criada com Sucesso!',
@@ -214,28 +180,20 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
             confirmButtonColor: '#28a745',
             allowOutsideClick: false
           });
-
-          // Recarrega relatórios para incluir a nova sala
           this.loadReports();
         },
         error: (error: any) => {
           console.error('Erro ao criar sala:', error);
           this.creating.set(false);
-
-          // Mostra erro customizado
           this.showCustomError(error);
         }
       });
   }
 
-  /**
-   * Carrega o status de uma sala específica
-   */
   loadRoomStatus(roomCode: string): void {
     if (this.loadingStatuses().has(roomCode)) return;
-
     this.loadingStatuses().add(roomCode);
-    
+
     this.criarSalaService.getRoomStatus(roomCode)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
@@ -252,9 +210,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       });
   }
 
-  /**
-   * Avança para a próxima etapa da sala
-   */
   advanceToNextRound(roomCode: string): void {
     Swal.fire({
       title: 'Avançar Etapa?',
@@ -270,13 +225,8 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
         this.criarSalaService.advanceToNextRound(roomCode)
           .pipe(takeUntil(this.destroy$))
           .subscribe({
-            next: (response) => {
-              console.log('Etapa avançada com sucesso:', response);
-              
-              // Recarrega o status da sala
+            next: () => {
               this.loadRoomStatus(roomCode);
-              
-              // Mostra sucesso
               Swal.fire({
                 icon: 'success',
                 title: 'Etapa Avançada!',
@@ -287,8 +237,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
             },
             error: (error: any) => {
               console.error('Erro ao avançar etapa:', error);
-              
-              // Mostra erro
               Swal.fire({
                 icon: 'error',
                 title: 'Erro ao Avançar',
@@ -302,19 +250,14 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
-  /**
-   * Abre o relatório de uma sala
-   */
   openRoomReport(roomCode: string): void {
     this.criarSalaService.openRoomReport(roomCode)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response: any) => {
           if (response.reportUrl) {
-            // Abre o relatório em nova aba
             window.open(response.reportUrl, '_blank');
           } else {
-            // Mostra mensagem se não houver relatório
             Swal.fire({
               icon: 'info',
               title: 'Relatório Indisponível',
@@ -326,8 +269,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
         },
         error: (error: any) => {
           console.error('Erro ao abrir relatório:', error);
-          
-          // Mostra erro
           Swal.fire({
             icon: 'error',
             title: 'Erro ao Abrir Relatório',
@@ -339,119 +280,56 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       });
   }
 
-  /**
-   * Obtém o status de uma sala
-   */
   getRoomStatus(roomCode: string): RoomStatus | null {
     return this.roomStatuses().get(roomCode) || null;
   }
 
-  /**
-   * Verifica se uma sala está finalizada
-   */
   isRoomFinished(roomCode: string): boolean {
-    const status = this.getRoomStatus(roomCode);
-    return status?.status === 'finalizado';
+    return this.getRoomStatus(roomCode)?.status === 'finalizado';
   }
 
-  /**
-   * Verifica se uma sala pode avançar para próxima etapa
-   */
   canAdvanceRoom(roomCode: string): boolean {
     const status = this.getRoomStatus(roomCode);
     return status ? status.status !== 'finalizado' : false;
   }
 
-  /**
-   * Obtém o texto de exibição do status
-   */
   getStatusDisplay(status: string | undefined): string {
-    if (!status || status === '' || status === null || status === undefined) {
-      return 'Carregando...';
-    }
-    
-    // Mapeamento para status específicos
+    if (!status) return 'Carregando...';
     if (status === 'lobby') return '🔄 Lobby';
     if (status === 'finalizado') return '🏁 Finalizado';
-    
-    // Formatação para rodadas (rodada_0, rodada_1, rodada_2, etc.)
     if (status.startsWith('rodada_')) {
-      const roundNumber = status.replace('rodada_', '');
-      const roundNum = parseInt(roundNumber);
-      
-      // Formatação especial para rodada 0
-      if (roundNum === 0) {
-        return '🎯 Rodada 0 - Autoavaliação';
-      }
-      
-      // Formatação para outras rodadas
-      return `🎯 Rodada ${roundNum} - Votação`;
+      const roundNum = parseInt(status.replace('rodada_', ''), 10);
+      return roundNum === 0 ? '🎯 Rodada 0 - Autoavaliação' : `🎯 Rodada ${roundNum} - Votação`;
     }
-    
-    // Para outros status não mapeados, retorna o status original
     return status;
   }
 
-  /**
-   * Calcula a porcentagem de progresso da votação (máximo 100%)
-   */
   getProgressPercentage(roomCode: string): number {
     const status = this.getRoomStatus(roomCode);
     if (!status) return 0;
-    
-    // Só mostrar progresso se estiver em uma rodada ativa
     if (status.status === 'lobby' || status.status === 'finalizado') return 0;
-    
     if (!status.round_progress) return 0;
-    
-    // Calcular porcentagem baseada na rodada atual
-    const currentVotes = status.round_progress.current_votes;
-    const expectedVotes = status.round_progress.expected_votes;
-    
-    if (expectedVotes === 0) return 0;
-    
-    // Garantir que a porcentagem não exceda 100%
-    const percentage = Math.min((currentVotes / expectedVotes) * 100, 100);
-    return Math.round(percentage);
+    const { current_votes, expected_votes } = status.round_progress;
+    if (expected_votes === 0) return 0;
+    return Math.round(Math.min((current_votes / expected_votes) * 100, 100));
   }
 
-  /**
-   * Obtém a cor do badge de status
-   */
   getStatusBadgeColor(status: string | undefined): string {
     if (!status) return 'bg-gray-100 text-gray-800';
-    
-    // Mapeamento para status específicos
     if (status === 'lobby') return 'bg-blue-100 text-blue-800';
     if (status === 'finalizado') return 'bg-purple-100 text-purple-800';
-    
-    // Formatação para rodadas (rodada_0, rodada_1, rodada_2, etc.)
     if (status.startsWith('rodada_')) {
-      const roundNumber = status.replace('rodada_', '');
-      const roundNum = parseInt(roundNumber);
-      
-      // Cores diferentes para cada tipo de rodada
-      if (roundNum === 0) {
-        return 'bg-yellow-100 text-yellow-800'; // Rodada 0 - Autoavaliação
-      } else if (roundNum === 1) {
-        return 'bg-green-100 text-green-800';   // Rodada 1 - Primeira votação
-      } else if (roundNum === 2) {
-        return 'bg-indigo-100 text-indigo-800'; // Rodada 2 - Segunda votação
-      } else {
-        // Para rodadas 3+, usar cores alternadas
-        return roundNum % 2 === 0 ? 'bg-teal-100 text-teal-800' : 'bg-orange-100 text-orange-800';
-      }
+      const roundNum = parseInt(status.replace('rodada_', ''), 10);
+      if (roundNum === 0) return 'bg-yellow-100 text-yellow-800';
+      if (roundNum === 1) return 'bg-green-100 text-green-800';
+      if (roundNum === 2) return 'bg-indigo-100 text-indigo-800';
+      return roundNum % 2 === 0 ? 'bg-teal-100 text-teal-800' : 'bg-orange-100 text-orange-800';
     }
-    
-    // Para outros status não mapeados
     return 'bg-gray-100 text-gray-800';
   }
 
-    // ===== FUNCIONALIDADES ADMINISTRATIVAS =====
+  // -------------------- Ações administrativas --------------------
 
-  /**
-   * Deleta uma sala permanentemente
-   */
   deleteRoom(roomCode: string): void {
     Swal.fire({
       title: '⚠️ Deletar Sala?',
@@ -473,32 +351,20 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       cancelButtonColor: '#6c757d',
       focusCancel: true
     }).then((result) => {
-      if (result.isConfirmed) {
-        this.executeDeleteRoom(roomCode);
-      }
+      if (result.isConfirmed) this.executeDeleteRoom(roomCode);
     });
   }
 
-  /**
-   * Executa a deleção da sala
-   */
   private executeDeleteRoom(roomCode: string): void {
     this.criarSalaService.deleteRoom(roomCode)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (response) => {
-          console.log('Sala deletada com sucesso:', response);
-          
-          // Remove da lista local
-          const currentReports = this.reports();
-          const updatedReports = currentReports.filter(r => r.code !== roomCode);
+        next: () => {
+          const updatedReports = this.reports().filter(r => r.code !== roomCode);
           this.reports.set(updatedReports);
-          
-          // Remove do status cache
           const statuses = new Map(this.roomStatuses());
           statuses.delete(roomCode);
           this.roomStatuses.set(statuses);
-          
           Swal.fire({
             icon: 'success',
             title: 'Sala Deletada!',
@@ -509,7 +375,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
         },
         error: (error: any) => {
           console.error('Erro ao deletar sala:', error);
-          
           Swal.fire({
             icon: 'error',
             title: 'Erro ao Deletar',
@@ -521,9 +386,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       });
   }
 
-  /**
-   * Reseta uma sala
-   */
   resetRoom(roomCode: string): void {
     Swal.fire({
       title: 'Resetar Sala?',
@@ -539,12 +401,8 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
         this.criarSalaService.resetRoom(roomCode)
           .pipe(takeUntil(this.destroy$))
           .subscribe({
-            next: (response) => {
-              console.log('Sala resetada com sucesso:', response);
-              
-              // Recarrega o status da sala
+            next: () => {
               this.loadRoomStatus(roomCode);
-              
               Swal.fire({
                 icon: 'success',
                 title: 'Sala Resetada!',
@@ -555,10 +413,9 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
             },
             error: (error: any) => {
               console.error('Erro ao resetar sala:', error);
-              
               Swal.fire({
                 icon: 'error',
-                title: 'Erro ao Resetar',
+                title: 'Erro ao Resetar Sala',
                 text: 'Não foi possível resetar a sala.',
                 confirmButtonText: 'OK',
                 confirmButtonColor: '#d33'
@@ -569,9 +426,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
-  /**
-   * Limpa todos os votos de uma sala
-   */
   clearAllVotes(roomCode: string): void {
     Swal.fire({
       title: 'Limpar Todos os Votos?',
@@ -587,12 +441,8 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
         this.criarSalaService.clearAllVotes(roomCode)
           .pipe(takeUntil(this.destroy$))
           .subscribe({
-            next: (response) => {
-              console.log('Votos limpos com sucesso:', response);
-              
-              // Recarrega o status da sala
+            next: () => {
               this.loadRoomStatus(roomCode);
-              
               Swal.fire({
                 icon: 'success',
                 title: 'Votos Limpos!',
@@ -603,7 +453,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
             },
             error: (error: any) => {
               console.error('Erro ao limpar votos:', error);
-              
               Swal.fire({
                 icon: 'error',
                 title: 'Erro ao Limpar Votos',
@@ -617,9 +466,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
-  /**
-   * Finaliza rodada forçadamente
-   */
   forceFinishRound(roomCode: string): void {
     Swal.fire({
       title: 'Finalizar Rodada Forçadamente?',
@@ -635,12 +481,8 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
         this.criarSalaService.forceFinishRound(roomCode)
           .pipe(takeUntil(this.destroy$))
           .subscribe({
-            next: (response) => {
-              console.log('Rodada finalizada com sucesso:', response);
-              
-              // Recarrega o status da sala
+            next: () => {
               this.loadRoomStatus(roomCode);
-              
               Swal.fire({
                 icon: 'success',
                 title: 'Rodada Finalizada!',
@@ -651,7 +493,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
             },
             error: (error: any) => {
               console.error('Erro ao finalizar rodada:', error);
-              
               Swal.fire({
                 icon: 'error',
                 title: 'Erro ao Finalizar Rodada',
@@ -665,9 +506,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
-  /**
-   * Finaliza sala forçadamente
-   */
   forceFinishRoom(roomCode: string): void {
     Swal.fire({
       title: 'Finalizar Sala Forçadamente?',
@@ -683,12 +521,8 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
         this.criarSalaService.forceFinishRoom(roomCode)
           .pipe(takeUntil(this.destroy$))
           .subscribe({
-            next: (response) => {
-              console.log('Sala finalizada com sucesso:', response);
-              
-              // Recarrega o status da sala
+            next: () => {
               this.loadRoomStatus(roomCode);
-              
               Swal.fire({
                 icon: 'success',
                 title: 'Sala Finalizada!',
@@ -699,7 +533,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
             },
             error: (error: any) => {
               console.error('Erro ao finalizar sala:', error);
-              
               Swal.fire({
                 icon: 'error',
                 title: 'Erro ao Finalizar Sala',
@@ -713,22 +546,17 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
-  /**
-   * Exporta dados de uma sala
-   */
   exportRoomData(roomCode: string, format: 'csv' | 'json' = 'json'): void {
     this.criarSalaService.exportRoomData(roomCode, format)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (blob: Blob) => {
-          // Criar download do arquivo
           const url = window.URL.createObjectURL(blob);
           const link = document.createElement('a');
           link.href = url;
           link.download = `sala_${roomCode}_export.${format}`;
           link.click();
           window.URL.revokeObjectURL(url);
-          
           Swal.fire({
             icon: 'success',
             title: 'Dados Exportados!',
@@ -739,7 +567,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
         },
         error: (error: any) => {
           console.error('Erro ao exportar dados:', error);
-          
           Swal.fire({
             icon: 'error',
             title: 'Erro ao Exportar',
@@ -751,9 +578,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       });
   }
 
-  /**
-   * Mostra estatísticas de uma sala
-   */
   showRoomStats(roomCode: string): void {
     this.criarSalaService.getRoomStats(roomCode)
       .pipe(takeUntil(this.destroy$))
@@ -777,7 +601,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
         },
         error: (error: any) => {
           console.error('Erro ao carregar estatísticas:', error);
-          
           Swal.fire({
             icon: 'error',
             title: 'Erro ao Carregar Estatísticas',
@@ -789,9 +612,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       });
   }
 
-  /**
-   * Mostra menu administrativo para uma sala
-   */
   showAdminMenu(roomCode: string, event: Event): void {
     event.preventDefault();
     event.stopPropagation();
@@ -819,235 +639,104 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       cancelButtonText: 'Fechar',
       cancelButtonColor: '#6c757d',
       didOpen: () => {
-        // Adicionar event listeners aos botões
         document.getElementById('force-finish-round')?.addEventListener('click', () => {
-          Swal.close();
-          this.forceFinishRound(roomCode);
+          Swal.close(); this.forceFinishRound(roomCode);
         });
-
         document.getElementById('force-finish-room')?.addEventListener('click', () => {
-          Swal.close();
-          this.forceFinishRoom(roomCode);
+          Swal.close(); this.forceFinishRoom(roomCode);
         });
-
         document.getElementById('clear-votes')?.addEventListener('click', () => {
-          Swal.close();
-          this.clearAllVotes(roomCode);
+          Swal.close(); this.clearAllVotes(roomCode);
         });
-
         document.getElementById('export-csv')?.addEventListener('click', () => {
-          Swal.close();
-          this.exportRoomData(roomCode, 'csv');
+          Swal.close(); this.exportRoomData(roomCode, 'csv');
         });
       }
     });
   }
 
-  /**
-   * Alterna a expansão de uma sala
-   */
   toggleRoomExpansion(roomCode: string): void {
-    const currentExpanded = this.expandedRooms();
-    const newExpanded = new Set(currentExpanded);
-    
-    if (newExpanded.has(roomCode)) {
-      newExpanded.delete(roomCode);
-    } else {
+    const newExpanded = new Set(this.expandedRooms());
+    if (newExpanded.has(roomCode)) newExpanded.delete(roomCode);
+    else {
       newExpanded.add(roomCode);
-      // Carregar detalhes da sala quando expandir
       this.loadRoomDetails(roomCode);
     }
-    
     this.expandedRooms.set(newExpanded);
   }
 
-  /**
-   * Verifica se uma sala está expandida
-   */
   isRoomExpanded(roomCode: string): boolean {
     return this.expandedRooms().has(roomCode);
   }
 
-  /**
-   * Carrega detalhes adicionais da sala
-   */
-  private loadRoomDetails(roomCode: string): void {
-    // Sempre carregar status da sala quando expandir para garantir dados atualizados
-    this.loadRoomStatus(roomCode);
+  private loadRoomDetails(_roomCode: string): void {
+    // detalhes extras se necessário
   }
 
-  /**
-   * Obtém mensagem de erro customizada baseada no tipo de erro
-   */
+  // -------------------- Erros --------------------
+
   private getCustomErrorMessage(error: any): { title: string; message: string; icon: 'error' | 'warning' | 'info' } {
-    // Erro de rede/conexão
     if (error.status === 0 || error.statusText === 'Unknown Error') {
-      return {
-        title: 'Erro de Conexão',
-        message: 'Não foi possível conectar ao servidor. Verifique sua conexão com a internet e tente novamente.',
-        icon: 'error'
-      };
+      return { title: 'Erro de Conexão', message: 'Não foi possível conectar ao servidor. Verifique sua conexão.', icon: 'error' };
     }
-
-    // Erros de validação do backend
     if (error.status === 400) {
-      if (error.error?.message) {
-        return {
-          title: 'Dados Inválidos',
-          message: error.error.message,
-          icon: 'warning'
-        };
-      }
-      return {
-        title: 'Dados Inválidos',
-        message: 'Os dados enviados não estão no formato correto. Verifique as informações e tente novamente.',
-        icon: 'warning'
-      };
+      return { title: 'Dados Inválidos', message: error.error?.message || 'Os dados enviados não estão no formato correto.', icon: 'warning' };
     }
-
-    // Erro de autorização
     if (error.status === 401) {
-      return {
-        title: 'Não Autorizado',
-        message: 'Sua sessão expirou ou você não tem permissão para esta ação. Faça login novamente.',
-        icon: 'warning'
-      };
+      return { title: 'Não Autorizado', message: 'Sua sessão expirou ou você não tem permissão para esta ação.', icon: 'warning' };
     }
-
-    // Erro de acesso negado
     if (error.status === 403) {
-      return {
-        title: 'Acesso Negado',
-        message: 'Você não tem permissão para criar salas. Entre em contato com o administrador.',
-        icon: 'warning'
-      };
+      return { title: 'Acesso Negado', message: 'Você não tem permissão para esta ação.', icon: 'warning' };
     }
-
-    // Erro de conflito (código já existe)
     if (error.status === 409) {
-      return {
-        title: 'Código Já Existe',
-        message: 'Este código de sala já está em uso. Gere um novo código e tente novamente.',
-        icon: 'warning'
-      };
+      return { title: 'Código Já Existe', message: 'Este código de sala já está em uso. Gere um novo.', icon: 'warning' };
     }
-
-    // Erro de validação específica
     if (error.status === 422) {
-      const validationErrors = error.error?.errors || [];
-      if (validationErrors.length > 0) {
-        const errorMessages = validationErrors.map((err: any) => err.message).join('\n• ');
-        return {
-          title: 'Erro de Validação',
-          message: `Os seguintes problemas foram encontrados:\n\n• ${errorMessages}`,
-          icon: 'warning'
-        };
+      const errs = error.error?.errors || [];
+      if (errs.length > 0) {
+        const msg = errs.map((e: any) => e.message).join('\n• ');
+        return { title: 'Erro de Validação', message: `Os seguintes problemas foram encontrados:\n\n• ${msg}`, icon: 'warning' };
       }
-      return {
-        title: 'Erro de Validação',
-        message: 'Os dados enviados não passaram na validação do servidor.',
-        icon: 'warning'
-      };
+      return { title: 'Erro de Validação', message: 'Os dados não passaram na validação do servidor.', icon: 'warning' };
     }
-
-    // Erro interno do servidor
     if (error.status === 500) {
-      return {
-        title: 'Erro do Servidor',
-        message: 'Ocorreu um erro interno no servidor. Tente novamente em alguns minutos ou entre em contato com o suporte.',
-        icon: 'error'
-      };
+      return { title: 'Erro do Servidor', message: 'Erro interno. Tente novamente mais tarde.', icon: 'error' };
     }
-
-    // Serviço indisponível
     if (error.status === 503) {
-      return {
-        title: 'Serviço Indisponível',
-        message: 'O serviço está temporariamente indisponível. Tente novamente em alguns minutos.',
-        icon: 'info'
-      };
+      return { title: 'Serviço Indisponível', message: 'Tente novamente em alguns minutos.', icon: 'info' };
     }
-
-    // Timeout
     if (error.status === 408 || error.name === 'TimeoutError') {
-      return {
-        title: 'Tempo Esgotado',
-        message: 'A requisição demorou muito para responder. Verifique sua conexão e tente novamente.',
-        icon: 'warning'
-      };
+      return { title: 'Tempo Esgotado', message: 'A requisição demorou muito. Verifique sua conexão e tente novamente.', icon: 'warning' };
     }
-
-    // Erro de código duplicado específico
     if (error.error?.code === 'ROOM_CODE_EXISTS') {
-      return {
-        title: 'Código Duplicado',
-        message: 'Este código de sala já existe. Gere um novo código único.',
-        icon: 'warning'
-      };
+      return { title: 'Código Duplicado', message: 'Este código de sala já existe. Gere outro.', icon: 'warning' };
     }
-
-    // Erro de limite de salas
     if (error.error?.code === 'USER_ROOM_LIMIT_EXCEEDED') {
-      return {
-        title: 'Limite de Salas Atingido',
-        message: 'Você já criou o número máximo de salas permitidas.',
-        icon: 'warning'
-      };
+      return { title: 'Limite de Salas Atingido', message: 'Você já criou o número máximo de salas.', icon: 'warning' };
     }
-
-    // Erro de nome duplicado
     if (error.error?.code === 'ROOM_NAME_EXISTS') {
-      return {
-        title: 'Nome Duplicado',
-        message: 'Já existe uma sala com este nome. Escolha um nome diferente.',
-        icon: 'warning'
-      };
+      return { title: 'Nome Duplicado', message: 'Já existe uma sala com este nome. Escolha outro.', icon: 'warning' };
     }
-
-    // Erro genérico com mensagem do backend
     if (error.error?.message) {
-      return {
-        title: 'Erro na Operação',
-        message: error.error.message,
-        icon: 'error'
-      };
+      return { title: 'Erro na Operação', message: error.error.message, icon: 'error' };
     }
-
-    // Erro padrão para códigos desconhecidos
-    return {
-      title: 'Erro Inesperado',
-      message: `Ocorreu um erro inesperado (${error.status || 'desconhecido'}). Tente novamente ou entre em contato com o suporte.`,
-      icon: 'error'
-    };
+    return { title: 'Erro Inesperado', message: `Ocorreu um erro inesperado (${error.status || 'desconhecido'}).`, icon: 'error' };
   }
 
-  /**
-   * Mostra alerta de erro customizado
-   */
   private showCustomError(error: any): void {
-    const errorInfo = this.getCustomErrorMessage(error);
-    
+    const info = this.getCustomErrorMessage(error);
     Swal.fire({
-      icon: errorInfo.icon,
-      title: errorInfo.title,
-      html: errorInfo.message.replace(/\n/g, '<br>'),
+      icon: info.icon,
+      title: info.title,
+      html: info.message.replace(/\n/g, '<br>'),
       confirmButtonText: 'Entendi',
-      confirmButtonColor: errorInfo.icon === 'error' ? '#d33' : 
-                          errorInfo.icon === 'warning' ? '#f39c12' : '#3085d6',
-      showClass: {
-        popup: 'animate__animated animate__fadeInDown'
-      },
-      hideClass: {
-        popup: 'animate__animated animate__fadeOutUp'
-      }
+      confirmButtonColor: info.icon === 'error' ? '#d33' : info.icon === 'warning' ? '#f39c12' : '#3085d6',
+      showClass: { popup: 'animate__animated animate__fadeInDown' },
+      hideClass: { popup: 'animate__animated animate__fadeOutUp' }
     });
   }
 
-  /**
-   * Reseta o formulário
-   */
   resetForm(): void {
-    // Confirma antes de limpar
     Swal.fire({
       icon: 'question',
       title: 'Limpar Formulário?',
@@ -1062,9 +751,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
         this.form.reset();
         this.code.set('');
         this.createdRoom.set(null);
-        this.generateCode(); // Gera novo código
-        
-        // Notificação de sucesso
+        this.generateCode();
         Swal.fire({
           icon: 'success',
           title: 'Formulário Limpo!',
@@ -1078,20 +765,17 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
-  /**
-   * Carrega os relatórios de salas anteriores
-   */
+  // -------------------- Relatórios e Status --------------------
+
   loadReports(): void {
     this.loadingReports.set(true);
-    
     this.criarSalaService.getRoomReports()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (reports: RoomReport[]) => {
           this.reports.set(reports);
           this.loadingReports.set(false);
-          
-          // Não carrega status automaticamente - apenas quando expandir
+          this.loadAllRoomStatuses(reports);
         },
         error: (error: any) => {
           console.error('Erro ao carregar relatórios:', error);
@@ -1101,13 +785,12 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       });
   }
 
-  /**
-   * Atualiza os relatórios
-   */
+  private loadAllRoomStatuses(reports: RoomReport[]): void {
+    reports.forEach(r => this.loadRoomStatus(r.code));
+  }
+
   refreshReports(): void {
     this.loadReports();
-    
-    // Mostra notificação
     Swal.fire({
       icon: 'success',
       title: 'Relatórios Atualizados!',
@@ -1119,40 +802,30 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
-  /**
-   * Track by para o ngFor
-   */
   trackById(index: number, item: any): string {
     return item.id || index;
   }
 
-  /**
-   * Abre os resultados de uma sala específica
-   */
+  // -------------------- Resultados / Modal --------------------
+
   openRoomResults(roomCode: string): void {
-    // Primeiro verifica se a sala tem resultados disponíveis
     this.criarSalaService.getRoomResults(roomCode)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (results: RoomResults) => {
-          // Se tem resultados, abre a modal
           if (results && results.participants_results && results.participants_results.length > 0) {
             this.openResultsModal(results);
           } else {
-            // Se não tem resultados, mostra mensagem
             Swal.fire({
               icon: 'info',
               title: 'Resultados Indisponíveis',
-              text: 'Esta sala ainda não possui resultados disponíveis. Os resultados aparecem após a finalização das rodadas.',
+              text: 'Esta sala ainda não possui resultados disponíveis.',
               confirmButtonText: 'Entendi',
               confirmButtonColor: '#3085d6'
             });
           }
         },
-        error: (error: any) => {
-          console.error('Erro ao verificar resultados:', error);
-          
-          // Se der erro, tenta abrir a modal mesmo assim
+        error: () => {
           Swal.fire({
             title: 'Ver Resultados',
             text: `Deseja visualizar os resultados da sala ${roomCode}?`,
@@ -1162,35 +835,21 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
             cancelButtonText: 'Cancelar',
             confirmButtonColor: '#3085d6',
             cancelButtonColor: '#6c757d'
-          }).then((result) => {
-            if (result.isConfirmed) {
-              // Tenta buscar os resultados novamente
-              this.loadRoomResultsForModal(roomCode);
-            }
+          }).then((res) => {
+            if (res.isConfirmed) this.loadRoomResultsForModal(roomCode);
           });
         }
       });
   }
 
-  /**
-   * Abre a modal de resultados
-   */
   private openResultsModal(results: RoomResults): void {
     this.currentResults.set(results);
     this.showResultsModal.set(true);
-    
-    // Aguarda um pouco para a modal renderizar antes de criar o gráfico
-    setTimeout(() => {
-      this.createResultsChart();
-    }, 100);
+    setTimeout(() => this.createResultsChart(), 100);
   }
 
-  /**
-   * Carrega resultados para a modal
-   */
   private loadRoomResultsForModal(roomCode: string): void {
     this.loadingResults.set(true);
-    
     this.criarSalaService.getRoomResults(roomCode)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
@@ -1201,11 +860,10 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
         error: (error: any) => {
           console.error('Erro ao carregar resultados:', error);
           this.loadingResults.set(false);
-          
           Swal.fire({
             icon: 'error',
             title: 'Erro ao Carregar Resultados',
-            text: 'Não foi possível carregar os resultados da sala. Tente novamente.',
+            text: 'Não foi possível carregar os resultados da sala.',
             confirmButtonText: 'OK',
             confirmButtonColor: '#d33'
           });
@@ -1213,60 +871,34 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       });
   }
 
-  /**
-   * Fecha a modal de resultados
-   */
   closeResultsModal(): void {
     this.showResultsModal.set(false);
     this.currentResults.set(null);
-    
-    // Destruir gráfico
     if (this.resultsChart) {
       this.resultsChart.destroy();
       this.resultsChart = null;
     }
   }
 
-  /**
-   * Cria o gráfico de resultados
-   */
   private createResultsChart(): void {
     if (!this.resultsChartCanvas || !this.currentResults()) return;
-
     const ctx = this.resultsChartCanvas.nativeElement.getContext('2d');
     if (!ctx) return;
 
-    // Destruir gráfico anterior se existir
-    if (this.resultsChart) {
-      this.resultsChart.destroy();
-    }
+    if (this.resultsChart) this.resultsChart.destroy();
 
     const results = this.currentResults()!;
-    const aggregatedResults = this.aggregateResultsByColor(results);
+    const aggregated = this.aggregateResultsByColor(results);
 
     this.resultsChart = new Chart(ctx, {
       type: 'bar',
       data: {
-        labels: aggregatedResults.map(r => r.color),
+        labels: aggregated.map(r => r.color),
         datasets: [{
           label: 'Total de Votos',
-          data: aggregatedResults.map(r => r.totalCount),
-          backgroundColor: [
-            '#8B5CF6', // Roxo
-            '#EAB308', // Amarelo
-            '#22C55E', // Verde
-            '#EF4444', // Vermelho
-            '#F97316', // Laranja
-            '#3B82F6'  // Azul
-          ],
-          borderColor: [
-            '#7C3AED', // Roxo
-            '#CA8A04', // Amarelo
-            '#16A34A', // Verde
-            '#DC2626', // Vermelho
-            '#EA580C', // Laranja
-            '#2563EB'  // Azul
-          ],
+          data: aggregated.map(r => r.totalCount),
+          backgroundColor: ['#8B5CF6', '#EAB308', '#22C55E', '#EF4444', '#F97316', '#3B82F6'],
+          borderColor: ['#7C3AED', '#CA8A04', '#16A34A', '#DC2626', '#EA580C', '#2563EB'],
           borderWidth: 2
         }]
       },
@@ -1277,71 +909,67 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
           title: {
             display: true,
             text: `Resumo de Votos - ${results.room_title}`,
-            font: {
-              size: 16,
-              weight: 'bold'
-            }
+            font: { size: 16, weight: 'bold' }
           },
-          legend: {
-            display: false
-          }
+          legend: { display: false }
         },
         scales: {
-          y: {
-            beginAtZero: true,
-            ticks: {
-              stepSize: 1
-            }
-          }
+          y: { beginAtZero: true, ticks: { stepSize: 1 } }
         }
       }
     });
   }
 
-  /**
-   * Agrega resultados por cor
-   */
-  private aggregateResultsByColor(results: RoomResults): Array<{color: string, totalCount: number}> {
+  private aggregateResultsByColor(results: RoomResults): Array<{ color: string; totalCount: number }> {
     const colorMap = new Map<string, number>();
-    
-    // Inicializar contadores para todas as cores
     const allColors = ['Roxo', 'Amarelo', 'Verde', 'Vermelho', 'Laranja', 'Azul'];
-    allColors.forEach(color => colorMap.set(color, 0));
-    
-    // Somar votos de todos os participantes
-    results.participants_results.forEach(participant => {
-      participant.results_by_color.forEach(colorResult => {
-        const currentCount = colorMap.get(colorResult.color) || 0;
-        colorMap.set(colorResult.color, currentCount + colorResult.count);
+    allColors.forEach(c => colorMap.set(c, 0));
+    results.participants_results.forEach(p => {
+      p.results_by_color.forEach(cr => {
+        colorMap.set(cr.color, (colorMap.get(cr.color) || 0) + cr.count);
       });
     });
-    
-    // Converter para array e ordenar por total de votos
     return Array.from(colorMap.entries())
       .map(([color, totalCount]) => ({ color, totalCount }))
       .sort((a, b) => b.totalCount - a.totalCount);
   }
 
-  /**
-   * Baixa o relatório em formato PDF
-   */
+  // -------------------- PDF de resultados (texto+gráfico) --------------------
+
   downloadResultsReport(): void {
     const results = this.currentResults();
-    if (!results) return;
+    if (!results) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Nenhum Resultado Disponível',
+        text: 'Não há resultados para gerar o relatório.',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#f39c12'
+      });
+      return;
+    }
+
+    Swal.fire({
+      title: 'Gerando Relatório PDF...',
+      text: 'Aguarde enquanto preparamos seu relatório completo.',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
 
     try {
-      // Capturar o gráfico como imagem antes de gerar o PDF
-      this.captureChartAsImage().then((chartImageData) => {
-        this.generatePDFWithChart(results, chartImageData);
-      }).catch((error) => {
-        console.error('Erro ao capturar gráfico:', error);
-        // Se não conseguir capturar o gráfico, gera PDF sem ele
-        this.generatePDFWithChart(results, null);
-      });
-      
+      this.captureChartAsImage()
+        .then((chartImg) => {
+          this.generatePDFWithChart(results, chartImg);
+          Swal.close();
+        })
+        .catch((error) => {
+          console.error('Erro ao capturar gráfico:', error);
+          this.generatePDFWithChart(results, null);
+          Swal.close();
+        });
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
-      
+      Swal.close();
       Swal.fire({
         icon: 'error',
         title: 'Erro ao Gerar PDF',
@@ -1352,311 +980,122 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
-  /**
-   * Captura o gráfico como imagem
-   */
   private async captureChartAsImage(): Promise<string | null> {
     if (!this.resultsChart || !this.resultsChartCanvas) {
+      console.log('Gráfico ou canvas não disponível para captura');
       return null;
     }
-
+    
     try {
-      // Capturar o canvas como imagem
       const canvas = this.resultsChartCanvas.nativeElement;
-      const imageData = canvas.toDataURL('image/png', 1.0);
-      return imageData;
-    } catch (error) {
-      console.error('Erro ao capturar gráfico:', error);
+      if (!canvas) {
+        console.log('Elemento canvas não encontrado');
+        return null;
+      }
+
+      // Aguardar um pouco para garantir que o gráfico foi renderizado
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const dataUrl = canvas.toDataURL('image/png', 1.0);
+      console.log('Gráfico capturado com sucesso');
+      return dataUrl;
+    } catch (e) {
+      console.error('Erro ao capturar gráfico:', e);
       return null;
     }
   }
 
-  /**
-   * Gera o PDF com o gráfico incluído
-   */
   private generatePDFWithChart(results: RoomResults, chartImageData: string | null): void {
     try {
-      // Criar novo documento PDF
       const pdf = new jsPDF('p', 'mm', 'a4');
-      
-      // Configurações de fonte
       pdf.setFont('helvetica');
+
+      // Cores do tema
+      const primary: [number, number, number] = [59, 130, 246];    // Azul
+      const secondary: [number, number, number] = [107, 114, 128]; // Cinza
+      const accent: [number, number, number] = [34, 197, 94];      // Verde
+      const lightBlue: [number, number, number] = [219, 234, 254]; // Azul claro
+
+      // Cabeçalho com fundo colorido
+      pdf.setFillColor(primary[0], primary[1], primary[2]);
+      pdf.rect(0, 0, 210, 40, 'F');
       
-      // Cores para o PDF (definidas como tuples para evitar erros de TypeScript)
-      const primaryColor: [number, number, number] = [59, 130, 246]; // Azul
-      const secondaryColor: [number, number, number] = [107, 114, 128]; // Cinza
-      const accentColor: [number, number, number] = [34, 197, 94]; // Verde
-      
-      // Título principal
+      // Título do relatório
       pdf.setFontSize(24);
-      pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      pdf.text('📊 Relatório de Resultados', 20, 30);
-      
-      // Informações da sala
-      pdf.setFontSize(16);
-      pdf.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-      pdf.text(`Sala: ${results.room_title}`, 20, 45);
-      pdf.text(`Código: ${results.room_code}`, 20, 55);
-      pdf.text(`Participantes: ${results.total_participants}`, 20, 65);
-      pdf.text(`Data: ${this.getCurrentDate()}`, 20, 75);
-      
-      // Linha separadora
-      pdf.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      pdf.setTextColor(255, 255, 255); // Branco
+      pdf.text('RELATORIO DE RESULTADOS', 20, 25);
+
+      // Caixa de informações da sala
+      pdf.setFillColor(lightBlue[0], lightBlue[1], lightBlue[2]);
+      pdf.rect(15, 45, 180, 30, 'F');
+      pdf.setDrawColor(primary[0], primary[1], primary[2]);
       pdf.setLineWidth(0.5);
-      pdf.line(20, 85, 190, 85);
+      pdf.rect(15, 45, 180, 30, 'S');
+
+      // Informações da sala
+      pdf.setFontSize(14);
+      pdf.setTextColor(primary[0], primary[1], primary[2]);
+      pdf.text('INFORMACOES DA SALA', 20, 55);
       
-      // Gráfico de resultados (se disponível)
+      pdf.setFontSize(12);
+      pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
+      pdf.text(`Sala: ${this.cleanText(results.room_title)}`, 20, 64);
+      pdf.text(`Codigo: ${results.room_code}`, 20, 70);
+      pdf.text(`Participantes: ${results.total_participants} pessoas`, 110, 64);
+      pdf.text(`Data: ${this.getCurrentDate()}`, 110, 70);
+
+      // Gráfico (se disponível)
       if (chartImageData) {
         pdf.setFontSize(18);
-        pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-        pdf.text('📈 Gráfico de Resultados', 20, 100);
-        
-        // Adicionar a imagem do gráfico
+        pdf.setTextColor(primary[0], primary[1], primary[2]);
+        pdf.text('GRAFICO DE RESULTADOS', 20, 90);
+
         try {
-          // Calcular dimensões para o gráfico (largura máxima 170mm, altura proporcional)
+          // Caixa para o gráfico
+          pdf.setFillColor(245, 245, 245); // Cinza muito claro
+          pdf.rect(15, 95, 180, 90, 'F');
+          pdf.setDrawColor(primary[0], primary[1], primary[2]);
+          pdf.rect(15, 95, 180, 90, 'S');
+          
           const maxWidth = 170;
           const maxHeight = 80;
-          
-          // Adicionar imagem do gráfico
-          pdf.addImage(chartImageData, 'PNG', 20, 110, maxWidth, maxHeight);
-          
-          // Posição Y após o gráfico
-          let yPosition = 110 + maxHeight + 20;
-          
-          // Resumo por cor após o gráfico
-          pdf.setFontSize(18);
-          pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-          pdf.text('🎨 Resumo de Votos por Cor', 20, yPosition);
-          
-          yPosition += 15;
-          
-          const aggregatedResults = this.aggregateResultsByColor(results);
-          
-          aggregatedResults.forEach((colorResult, index) => {
-            if (yPosition > 250) {
-              pdf.addPage();
-              yPosition = 20;
-            }
-            
-            pdf.setFontSize(12);
-            pdf.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-            pdf.text(`${colorResult.color}:`, 25, yPosition);
-            
-            pdf.setFontSize(14);
-            pdf.setTextColor(accentColor[0], accentColor[1], accentColor[2]);
-            pdf.text(`${colorResult.totalCount} votos`, 120, yPosition);
-            
-            yPosition += 8;
-          });
-          
-        } catch (imageError) {
-          console.error('Erro ao adicionar gráfico ao PDF:', imageError);
-          // Se der erro na imagem, continua sem ela
-          let yPosition = 100;
-          
-          // Resumo por cor
-          pdf.setFontSize(18);
-          pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-          pdf.text('🎨 Resumo de Votos por Cor', 20, yPosition);
-          
-          yPosition += 15;
-          
-          const aggregatedResults = this.aggregateResultsByColor(results);
-          
-          aggregatedResults.forEach((colorResult, index) => {
-            if (yPosition > 250) {
-              pdf.addPage();
-              yPosition = 20;
-            }
-            
-            pdf.setFontSize(12);
-            pdf.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-            pdf.text(`${colorResult.color}:`, 25, yPosition);
-            
-            pdf.setFontSize(14);
-            pdf.setTextColor(accentColor[0], accentColor[1], accentColor[2]);
-            pdf.text(`${colorResult.totalCount} votos`, 120, yPosition);
-            
-            yPosition += 8;
-          });
+          pdf.addImage(chartImageData, 'PNG', 20, 100, maxWidth, maxHeight);
+
+          let y = 200;
+          this.renderResumoPorCor(pdf, results, primary, secondary, accent, lightBlue, y);
+        } catch (error) {
+          console.error('Erro ao adicionar gráfico:', error);
+          this.renderResumoPorCor(pdf, results, primary, secondary, accent, lightBlue, 90);
         }
       } else {
-        // Se não tiver gráfico, mostra apenas o resumo por cor
-        let yPosition = 100;
-        
-        // Resumo por cor
-        pdf.setFontSize(18);
-        pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-        pdf.text('🎨 Resumo de Votos por Cor', 20, yPosition);
-        
-        yPosition += 15;
-        
-        const aggregatedResults = this.aggregateResultsByColor(results);
-        
-        aggregatedResults.forEach((colorResult, index) => {
-          if (yPosition > 250) {
-            pdf.addPage();
-            yPosition = 20;
-          }
-          
-          pdf.setFontSize(12);
-          pdf.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-          pdf.text(`${colorResult.color}:`, 25, yPosition);
-          
-          pdf.setFontSize(14);
-          pdf.setTextColor(accentColor[0], accentColor[1], accentColor[2]);
-          pdf.text(`${colorResult.totalCount} votos`, 120, yPosition);
-          
-          yPosition += 8;
-        });
+        this.renderResumoPorCor(pdf, results, primary, secondary, accent, lightBlue, 90);
       }
-      
-      // Nova página para detalhes dos participantes
+
+      // Página de participantes detalhados
       pdf.addPage();
-      
-      // Título da seção de participantes
-      pdf.setFontSize(18);
-      pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      pdf.text('👥 Detalhes dos Participantes', 20, 30);
-      
-      let yPosition = 45;
-      
-      results.participants_results.forEach((participant, participantIndex) => {
-        if (yPosition > 250) {
-          pdf.addPage();
-          yPosition = 20;
-        }
-        
-        // Nome do participante
-        pdf.setFontSize(14);
-        pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-        pdf.text(`${participantIndex + 1}. ${participant.name}`, 20, yPosition);
-        
-        yPosition += 8;
-        
-        // Cor escolhida
-        pdf.setFontSize(12);
-        pdf.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-        const envelopeColor = this.getColorNameFromHex(participant.envelope_choice);
-        pdf.text(`Cor Escolhida: ${envelopeColor}`, 25, yPosition);
-        pdf.text(`Total de Votos: ${participant.total_votes}`, 25, yPosition + 6);
-        
-        yPosition += 15;
-        
-        // Votos detalhados
-        if (participant.detailed_votes.length > 0) {
-          pdf.setFontSize(11);
-          pdf.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-          pdf.text('Votos Recebidos:', 25, yPosition);
-          
-          yPosition += 6;
-          
-          participant.detailed_votes.forEach((vote, voteIndex) => {
-            if (yPosition > 250) {
-              pdf.addPage();
-              yPosition = 20;
-            }
-            
-            pdf.setFontSize(10);
-            pdf.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-            pdf.text(`• ${vote.from_name} → ${vote.card_color}`, 30, yPosition);
-            
-            yPosition += 5;
-            
-            // Descrição da carta (quebrar linha se necessário)
-            const description = vote.card_description;
-            if (description.length > 60) {
-              const lines = this.splitTextToFit(description, 60);
-              lines.forEach(line => {
-                if (yPosition > 250) {
-                  pdf.addPage();
-                  yPosition = 20;
-                }
-                pdf.text(`  ${line}`, 35, yPosition);
-                yPosition += 4;
-              });
-            } else {
-              pdf.text(`  ${description}`, 35, yPosition);
-              yPosition += 4;
-            }
-            
-            yPosition += 2;
-          });
-        }
-        
-        yPosition += 10;
-        
-        // Linha separadora entre participantes
-        if (participantIndex < results.participants_results.length - 1) {
-          pdf.setDrawColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-          pdf.setLineWidth(0.2);
-          pdf.line(20, yPosition, 190, yPosition);
-          yPosition += 5;
-        }
-      });
-      
-      // Adicionar página de estatísticas finais
+      this.renderParticipantesDetalhados(pdf, results, primary, secondary, accent);
+
+      // Página de estatísticas finais
       pdf.addPage();
-      
-      // Título da página de estatísticas
-      pdf.setFontSize(18);
-      pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      pdf.text('📈 Estatísticas Finais', 20, 30);
-      
-      // Estatísticas gerais
-      pdf.setFontSize(14);
-      pdf.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-      pdf.text(`Total de Participantes: ${results.total_participants}`, 20, 50);
-      
-      const totalVotes = results.participants_results.reduce((sum, p) => sum + p.total_votes, 0);
-      pdf.text(`Total de Votos: ${totalVotes}`, 20, 65);
-      
-      const mostVotedColor = this.aggregateResultsByColor(results)[0];
-      if (mostVotedColor) {
-        pdf.text(`Cor Mais Votada: ${mostVotedColor.color} (${mostVotedColor.totalCount} votos)`, 20, 80);
-      }
-      
-      // Distribuição de cores
-      pdf.setFontSize(16);
-      pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      pdf.text('Distribuição de Votos por Cor:', 20, 100);
-      
-      yPosition = 115;
-      const aggregatedResults = this.aggregateResultsByColor(results);
-      aggregatedResults.forEach((colorResult, index) => {
-        const percentage = ((colorResult.totalCount / totalVotes) * 100).toFixed(1);
-        pdf.setFontSize(12);
-        pdf.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-        pdf.text(`${colorResult.color}: ${colorResult.totalCount} votos (${percentage}%)`, 25, yPosition);
-        yPosition += 8;
-      });
-      
-      // Rodapé
-      const pageCount = pdf.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
-        pdf.setPage(i);
-        pdf.setFontSize(10);
-        pdf.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-        pdf.text(`Página ${i} de ${pageCount}`, 20, 287);
-        pdf.text(`Gerado em ${this.getCurrentDate()}`, 120, 287);
-      }
-      
+      this.renderEstatisticasFinais(pdf, results, primary, secondary, accent);
+
+      // Adicionar numeração de páginas
+      this.addPageNumbers(pdf);
+
       // Salvar o PDF
-      const fileName = `resultados_${results.room_code}_${new Date().toISOString().split('T')[0]}.pdf`;
+      const fileName = `relatorio_${results.room_code}_${new Date().toISOString().split('T')[0]}.pdf`;
       pdf.save(fileName);
-      
-      // Mostrar confirmação
+
       Swal.fire({
         icon: 'success',
-        title: 'Relatório PDF Baixado!',
-        text: 'O relatório em PDF foi gerado e baixado com sucesso, incluindo o gráfico!',
+        title: 'Relatório PDF Gerado!',
+        text: 'O relatório em PDF foi criado e baixado com sucesso!',
         confirmButtonText: 'OK',
         confirmButtonColor: '#28a745'
       });
-      
+
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
-      
       Swal.fire({
         icon: 'error',
         title: 'Erro ao Gerar PDF',
@@ -1667,37 +1106,484 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
-  /**
-   * Quebra texto para caber na largura do PDF
-   */
+  // -------------------- Funções auxiliares para geração de PDF --------------------
+
+  private renderResumoPorCor(
+    pdf: jsPDF,
+    results: RoomResults,
+    primary: [number, number, number],
+    secondary: [number, number, number],
+    accent: [number, number, number],
+    lightBlue: [number, number, number],
+    startY: number = 100
+  ): void {
+    let y = startY;
+    pdf.setFontSize(18);
+    pdf.setTextColor(primary[0], primary[1], primary[2]);
+    pdf.text('RESUMO DE VOTOS POR COR', 20, y);
+    y += 15;
+
+    // Caixa de fundo para o resumo
+    const aggregated = this.aggregateResultsByColor(results);
+    const boxHeight = (aggregated.length * 8) + 10;
+    pdf.setFillColor(lightBlue[0], lightBlue[1], lightBlue[2]);
+    pdf.rect(15, y - 5, 180, boxHeight, 'F');
+    pdf.setDrawColor(primary[0], primary[1], primary[2]);
+    pdf.rect(15, y - 5, 180, boxHeight, 'S');
+
+    aggregated.forEach((c) => {
+      if (y > 250) { pdf.addPage(); y = 20; }
+      pdf.setFontSize(12);
+      pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
+      pdf.text(`${c.color}:`, 25, y);
+      pdf.setFontSize(14);
+      pdf.setTextColor(accent[0], accent[1], accent[2]);
+      pdf.text(`${c.totalCount} votos`, 120, y);
+      y += 8;
+    });
+  }
+
+  private renderResumoPorCorFallback(
+    pdf: jsPDF,
+    results: RoomResults,
+    primary: [number, number, number],
+    secondary: [number, number, number],
+    accent: [number, number, number],
+    startY: number = 100
+  ): void {
+    let y = startY;
+    pdf.setFontSize(18);
+    pdf.setTextColor(primary[0], primary[1], primary[2]);
+    pdf.text('RESUMO DE VOTOS POR COR', 20, y);
+    y += 15;
+
+    const aggregated = this.aggregateResultsByColor(results);
+    aggregated.forEach((c) => {
+      if (y > 250) { pdf.addPage(); y = 20; }
+      pdf.setFontSize(12);
+      pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
+      pdf.text(`${c.color}:`, 25, y);
+      pdf.setFontSize(14);
+      pdf.setTextColor(accent[0], accent[1], accent[2]);
+      pdf.text(`${c.totalCount} votos`, 120, y);
+      y += 8;
+    });
+  }
+
+  private renderParticipantesDetalhados(
+    pdf: jsPDF,
+    results: RoomResults,
+    primary: [number, number, number],
+    secondary: [number, number, number],
+    accent: [number, number, number]
+  ): void {
+    // Cabeçalho da página
+    pdf.setFillColor(primary[0], primary[1], primary[2]);
+    pdf.rect(0, 0, 210, 40, 'F');
+    
+    pdf.setFontSize(18);
+    pdf.setTextColor(255, 255, 255);
+    pdf.text('DETALHES DOS PARTICIPANTES', 20, 25);
+
+    let y = 50;
+    results.participants_results.forEach((p, idx) => {
+      if (y > 250) { 
+        pdf.addPage(); 
+        y = 20; 
+      }
+
+      // Caixa para cada participante
+      const participantBoxHeight = Math.min(40 + (p.detailed_votes.length * 8), 60);
+      pdf.setFillColor(245, 245, 245);
+      pdf.rect(15, y - 5, 180, participantBoxHeight, 'F');
+      pdf.setDrawColor(primary[0], primary[1], primary[2]);
+      pdf.rect(15, y - 5, 180, participantBoxHeight, 'S');
+
+      pdf.setFontSize(14);
+      pdf.setTextColor(primary[0], primary[1], primary[2]);
+      pdf.text(`${idx + 1}. ${this.cleanText(p.name)}`, 20, y); 
+      y += 8;
+
+      pdf.setFontSize(12);
+      pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
+      const envelopeColor = this.getColorNameFromHex(p.envelope_choice);
+      pdf.text(`Cor Escolhida: ${envelopeColor}`, 25, y);
+      pdf.text(`Total de Votos: ${p.total_votes}`, 25, y + 6);
+      y += 15;
+
+      if (p.detailed_votes.length > 0) {
+        pdf.setFontSize(11);
+        pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
+        pdf.text('Votos Recebidos:', 25, y); 
+        y += 6;
+
+        p.detailed_votes.slice(0, 3).forEach((v) => { // Mostra apenas 3 votos por participante para não ocupar muito espaço
+          if (y > 250) { pdf.addPage(); y = 20; }
+          pdf.setFontSize(10);
+          pdf.text(`- ${this.cleanText(v.from_name)} -> ${v.card_color}`, 30, y); 
+          y += 5;
+
+          const desc = this.cleanText(v.card_description);
+          const shortDesc = desc.length > 50 ? desc.substring(0, 47) + '...' : desc;
+          pdf.text(`  ${shortDesc}`, 35, y);
+          y += 4;
+        });
+        
+        if (p.detailed_votes.length > 3) {
+          pdf.setFontSize(10);
+          pdf.setTextColor(accent[0], accent[1], accent[2]);
+          pdf.text(`... e mais ${p.detailed_votes.length - 3} votos`, 30, y);
+          y += 5;
+        }
+      }
+
+      y += participantBoxHeight - 15;
+    });
+  }
+
+  private renderEstatisticasFinais(
+    pdf: jsPDF,
+    results: RoomResults,
+    primary: [number, number, number],
+    secondary: [number, number, number],
+    accent: [number, number, number]
+  ): void {
+    // Cabeçalho da página
+    pdf.setFillColor(primary[0], primary[1], primary[2]);
+    pdf.rect(0, 0, 210, 40, 'F');
+    
+    pdf.setFontSize(18);
+    pdf.setTextColor(255, 255, 255);
+    pdf.text('ESTATISTICAS FINAIS', 20, 25);
+
+    // Caixa com resumo geral
+    pdf.setFillColor(219, 234, 254); // Azul claro
+    pdf.rect(15, 45, 180, 35, 'F');
+    pdf.setDrawColor(primary[0], primary[1], primary[2]);
+    pdf.rect(15, 45, 180, 35, 'S');
+
+    pdf.setFontSize(14);
+    pdf.setTextColor(primary[0], primary[1], primary[2]);
+    pdf.text('RESUMO GERAL', 20, 55);
+
+    const totalVotes = results.participants_results.reduce((sum, p) => sum + p.total_votes, 0);
+    
+    pdf.setFontSize(12);
+    pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
+    pdf.text(`Total de Participantes: ${results.total_participants} pessoas`, 20, 65);
+    pdf.text(`Total de Votos: ${totalVotes} votos`, 20, 72);
+
+    const mostVoted = this.aggregateResultsByColor(results)[0];
+    if (mostVoted) {
+      pdf.setTextColor(accent[0], accent[1], accent[2]);
+      pdf.text(`Cor Mais Votada: ${mostVoted.color} (${mostVoted.totalCount} votos)`, 110, 65);
+    }
+
+    // Caixa com distribuição de votos
+    pdf.setFillColor(245, 245, 245); // Cinza claro
+    pdf.rect(15, 90, 180, 120, 'F');
+    pdf.setDrawColor(primary[0], primary[1], primary[2]);
+    pdf.rect(15, 90, 180, 120, 'S');
+
+    pdf.setFontSize(16);
+    pdf.setTextColor(primary[0], primary[1], primary[2]);
+    pdf.text('DISTRIBUICAO DE VOTOS POR COR', 20, 105);
+
+    let y = 125;
+    const aggregated = this.aggregateResultsByColor(results);
+    aggregated.forEach((c, index) => {
+      const pct = totalVotes > 0 ? ((c.totalCount / totalVotes) * 100).toFixed(1) : '0.0';
+      
+      // Barra de progresso visual simples
+      const barWidth = (c.totalCount / (mostVoted?.totalCount || 1)) * 120;
+      pdf.setFillColor(accent[0], accent[1], accent[2]);
+      pdf.rect(25, y - 3, barWidth, 6, 'F');
+      
+      pdf.setFontSize(12);
+      pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
+      pdf.text(`${c.color}:`, 25, y + 8);
+      pdf.setTextColor(accent[0], accent[1], accent[2]);
+      pdf.text(`${c.totalCount} votos (${pct}%)`, 80, y + 8);
+      y += 18;
+    });
+
+    // Rodapé com informações adicionais
+    pdf.setFontSize(10);
+    pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
+    pdf.text('Este relatorio foi gerado automaticamente pelo sistema.', 20, 260);
+    pdf.text(`Sala finalizada com ${results.total_participants} participantes ativos.`, 20, 270);
+  }
+
+  private addPageNumbers(pdf: jsPDF): void {
+    const pageCount = pdf.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      pdf.setPage(i);
+      pdf.setFontSize(10);
+      pdf.setTextColor(107, 114, 128); // Cinza
+      pdf.text(`Pagina ${i} de ${pageCount}`, 20, 287);
+      pdf.text(`Gerado em ${this.getCurrentDate()}`, 120, 287);
+    }
+  }
+
+  // -------------------- Captura da MODAL (Imagem/PDF) --------------------
+
+  /** Encontra o elemento da modal de resultados (tente marcar o container no HTML com data-results-modal) */
+  private findResultsModalEl(): HTMLElement | null {
+    try {
+      const canvas = this.resultsChartCanvas?.nativeElement;
+      if (canvas) {
+        const modal =
+          canvas.closest<HTMLElement>('[data-results-modal]') ||
+          canvas.closest<HTMLElement>('[role="dialog"]') ||
+          canvas.closest<HTMLElement>('.results-modal') ||
+          canvas.closest<HTMLElement>('.fixed.inset-0.z-50.overflow-y-auto');
+        if (modal) return modal;
+      }
+    } catch { /* ignore */ }
+
+    return (
+      document.querySelector<HTMLElement>('[data-results-modal]') ||
+      document.querySelector<HTMLElement>('[role="dialog"]') ||
+      document.querySelector<HTMLElement>('.results-modal') ||
+      document.querySelector<HTMLElement>('.fixed.inset-0.z-50.overflow-y-auto')
+    );
+  }
+
+  /** Converte um elemento visível em PNG (DataURL) sem passar nós clonados manualmente */
+  private async elementToPngDataUrl(el: HTMLElement): Promise<string> {
+    el.setAttribute('data-capture', 'true');
+    try {
+      // Importação dinâmica do html2canvas
+      const html2canvas = await import('html2canvas');
+      const canvas = await (html2canvas as any).default(el, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        foreignObjectRendering: false,
+        removeContainer: true,
+        onclone: (doc: Document) => {
+          const target = doc.querySelector('[data-capture="true"]') as HTMLElement | null;
+          if (target) {
+            target.style.maxHeight = 'none';
+            target.style.overflow = 'visible';
+            target.style.position = 'relative';
+            target.style.transform = 'none';
+            target.style.filter = 'none';
+          }
+        }
+      });
+      return canvas.toDataURL('image/png', 1.0);
+    } finally {
+      el.removeAttribute('data-capture');
+    }
+  }
+
+  /** Converte um PNG alto em PDF A4 múltiplas páginas automaticamente */
+  private pngDataUrlToMultipagePdf(imgDataUrl: string, fileName: string): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+        const margin = 10;
+        const renderW = pageW - margin * 2;
+        const renderH = renderW * (img.height / img.width);
+
+        if (renderH <= pageH - margin * 2) {
+          pdf.addImage(imgDataUrl, 'PNG', margin, margin, renderW, renderH);
+          pdf.save(fileName);
+          resolve();
+          return;
+        }
+
+        // multi-página: recorta o PNG em fatias verticais
+        const pageCanvas = document.createElement('canvas');
+        const ctx = pageCanvas.getContext('2d')!;
+        const sliceHeightPx = Math.floor((img.width / renderW) * (pageH - margin * 2));
+
+        pageCanvas.width = img.width;
+        pageCanvas.height = sliceHeightPx;
+
+        let y = 0;
+        let first = true;
+
+        while (y < img.height) {
+          const h = Math.min(sliceHeightPx, img.height - y);
+          ctx.clearRect(0, 0, pageCanvas.width, pageCanvas.height);
+          ctx.drawImage(img, 0, y, img.width, h, 0, 0, img.width, h);
+
+          const sliceData = pageCanvas.toDataURL('image/png', 1.0);
+          const sliceRenderH = (h / img.width) * renderW;
+
+          if (!first) pdf.addPage();
+          pdf.addImage(sliceData, 'PNG', margin, margin, renderW, sliceRenderH);
+
+          first = false;
+          y += h;
+        }
+
+        pdf.save(fileName);
+        resolve();
+      };
+      img.onerror = reject;
+      img.src = imgDataUrl;
+    });
+  }
+
+  /** Baixa a modal como **imagem PNG** */
+  downloadModalAsImage(): void {
+    const results = this.currentResults();
+    if (!results) return;
+
+    const modal = this.findResultsModalEl();
+    if (!modal) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Modal não encontrada',
+        text: 'Não foi possível localizar a modal de resultados visível.',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#d33'
+      });
+      return;
+    }
+
+    Swal.fire({
+      title: 'Gerando imagem...',
+      text: 'Capturando a modal completa.',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
+
+    // pequena espera para garantir layout estável (transições)
+    setTimeout(async () => {
+      try {
+        const imgData = await this.elementToPngDataUrl(modal);
+        const link = document.createElement('a');
+        link.download = `resultados_${results.room_code}_${new Date().toISOString().split('T')[0]}.png`;
+        link.href = imgData;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        Swal.close();
+        Swal.fire({
+          icon: 'success',
+          title: 'Imagem Baixada!',
+          text: 'A modal foi capturada como PNG.',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#28a745'
+        });
+      } catch (e) {
+        console.error('Erro ao capturar modal (PNG):', e);
+        Swal.fire({
+          icon: 'error',
+          title: 'Erro ao Gerar Imagem',
+          text: 'Não foi possível capturar a modal como imagem.',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#d33'
+        });
+      }
+    }, 300);
+  }
+
+  /** Baixa a modal como **PDF A4 multipágina** */
+  downloadModalAsPdf(): void {
+    const results = this.currentResults();
+    if (!results) return;
+
+    const modal = this.findResultsModalEl();
+    if (!modal) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Modal não encontrada',
+        text: 'Não foi possível localizar a modal de resultados visível.',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#d33'
+      });
+      return;
+    }
+
+    Swal.fire({
+      title: 'Gerando PDF...',
+      text: 'Capturando a modal completa e montando o PDF.',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
+
+    setTimeout(async () => {
+      try {
+        const imgData = await this.elementToPngDataUrl(modal);
+        const fileName = `resultados_${results.room_code}_${new Date().toISOString().split('T')[0]}.pdf`;
+        await this.pngDataUrlToMultipagePdf(imgData, fileName);
+        Swal.close();
+        Swal.fire({
+          icon: 'success',
+          title: 'PDF Baixado!',
+          text: 'A modal foi capturada e convertida em PDF.',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#28a745'
+        });
+      } catch (e) {
+        console.error('Erro ao capturar modal (PDF):', e);
+        Swal.fire({
+          icon: 'error',
+          title: 'Erro ao Gerar PDF',
+          text: 'Não foi possível capturar a modal para PDF.',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#d33'
+        });
+      }
+    }, 300);
+  }
+
+  // -------------------- Utilitários --------------------
+
+  private cleanText(text: string): string {
+    if (!text) return '';
+    
+    // Remove emojis e caracteres especiais problemáticos
+    return text
+      .replace(/[\uD83C-\uDBFF\uDC00-\uDFFF]+/g, '') // Remove emojis
+      .replace(/[\u2600-\u26FF]/g, '')   // Símbolos diversos
+      .replace(/[\u2700-\u27BF]/g, '')   // Dingbats
+      .replace(/[áàâãäåæ]/g, 'a')
+      .replace(/[éèêë]/g, 'e')
+      .replace(/[íìîï]/g, 'i')
+      .replace(/[óòôõöø]/g, 'o')
+      .replace(/[úùûü]/g, 'u')
+      .replace(/[ç]/g, 'c')
+      .replace(/[ñ]/g, 'n')
+      .replace(/[ÁÀÂÃÄÅÆ]/g, 'A')
+      .replace(/[ÉÈÊË]/g, 'E')
+      .replace(/[ÍÌÎÏ]/g, 'I')
+      .replace(/[ÓÒÔÕÖØ]/g, 'O')
+      .replace(/[ÚÙÛÜ]/g, 'U')
+      .replace(/[Ç]/g, 'C')
+      .replace(/[Ñ]/g, 'N')
+      .replace(/[^\w\s\-\.\,\!\?\(\)]/g, '') // Remove outros caracteres especiais
+      .trim();
+  }
+
   private splitTextToFit(text: string, maxWidth: number): string[] {
     const words = text.split(' ');
     const lines: string[] = [];
-    let currentLine = '';
-    
+    let current = '';
     words.forEach(word => {
-      if ((currentLine + ' ' + word).length <= maxWidth) {
-        currentLine += (currentLine ? ' ' : '') + word;
+      if ((current + ' ' + word).length <= maxWidth) {
+        current += (current ? ' ' : '') + word;
       } else {
-        if (currentLine) {
-          lines.push(currentLine);
-        }
-        currentLine = word;
+        if (current) lines.push(current);
+        current = word;
       }
     });
-    
-    if (currentLine) {
-      lines.push(currentLine);
-    }
-    
+    if (current) lines.push(current);
     return lines;
   }
 
-  /**
-   * Converte código hexadecimal para nome da cor
-   */
   getColorNameFromHex(hex: string): string {
-    const colorMap: { [key: string]: string } = {
+    const map: Record<string, string> = {
       '#8B5CF6': 'Roxo',
       '#EAB308': 'Amarelo',
       '#22C55E': 'Verde',
@@ -1705,15 +1591,11 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       '#F97316': 'Laranja',
       '#3B82F6': 'Azul'
     };
-    
-    return colorMap[hex] || hex;
+    return map[hex] || hex;
   }
 
-  /**
-   * Converte nome da cor para código hexadecimal
-   */
   getColorHex(colorName: string): string {
-    const colorMap: { [key: string]: string } = {
+    const map: Record<string, string> = {
       'Roxo': '#8B5CF6',
       'Amarelo': '#EAB308',
       'Verde': '#22C55E',
@@ -1721,28 +1603,21 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       'Laranja': '#F97316',
       'Azul': '#3B82F6'
     };
-    
-    return colorMap[colorName] || '#6B7280';
+    return map[colorName] || '#6B7280';
   }
 
-  /**
-   * Método público para usar no template
-   */
-  getAggregatedResults(results: RoomResults): Array<{color: string, totalCount: number}> {
+  getAggregatedResults(results: RoomResults): Array<{ color: string; totalCount: number }> {
     return this.aggregateResultsByColor(results);
   }
 
-  /**
-   * Retorna a data atual formatada para o template
-   */
   getCurrentDate(): string {
-    return new Date().toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    const now = new Date();
+    const day = now.getDate().toString().padStart(2, '0');
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const year = now.getFullYear();
+    const hour = now.getHours().toString().padStart(2, '0');
+    const minute = now.getMinutes().toString().padStart(2, '0');
+    
+    return `${day}/${month}/${year} ${hour}:${minute}`;
   }
 }
-

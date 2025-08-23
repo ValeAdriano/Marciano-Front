@@ -107,6 +107,17 @@ export class HomeService {
     return this.session();
   }
 
+  /**
+   * Verifica se a sessão está completa com todos os dados necessários
+   */
+  isSessionComplete(): boolean {
+    const session = this.getSession();
+    return !!(session && 
+              session.name && 
+              session.envelopeHex && 
+              session.roomCode);
+  }
+
   clearSession(): void {
     this._session.set(null);
     try { localStorage.removeItem(STORAGE_KEY); } catch {}
