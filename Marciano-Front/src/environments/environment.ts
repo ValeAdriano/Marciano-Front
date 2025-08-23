@@ -1,7 +1,7 @@
 export const environment = {
   production: false,
-  apiUrl: 'http://127.0.0.1:8000',
-  socketUrl: 'http://127.0.0.1:8000',
+  apiUrl: 'https://qualidadesanimicas-production.up.railway.app',
+  socketUrl: 'https://qualidadesanimicas-production.up.railway.app',
   appName: 'Marciano Game',
   version: '1.0.0',
   

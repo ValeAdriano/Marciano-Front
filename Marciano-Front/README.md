@@ -205,9 +205,15 @@ O projeto utiliza um proxy para comunicação com a API backend durante o desenv
 
 ```json
 {
-  "/api/*": {
-    "target": "http://localhost:3000",
+  "/api": {
+    "target": "https://qualidadesanimicas-production.up.railway.app",
     "secure": true,
+    "changeOrigin": true
+  },
+  "/socket.io": {
+    "target": "https://qualidadesanimicas-production.up.railway.app",
+    "secure": true,
+    "ws": true,
     "changeOrigin": true
   }
 }
@@ -369,7 +375,13 @@ A aplicação está preparada para integrar com uma API REST + WebSocket. Consul
 
 ### **Estado Atual**
 
-⚠️ **Importante**: Atualmente a aplicação utiliza dados mock para desenvolvimento. A integração com backend real requer implementação da API conforme especificação.
+✅ **Backend Real**: A aplicação está configurada para integrar com o backend em produção em `https://qualidadesanimicas-production.up.railway.app`.
+
+**Configurações Atualizadas:**
+- **API REST**: `/api/*` → `https://qualidadesanimicas-production.up.railway.app/api`
+- **WebSocket**: `/socket.io/*` → `https://qualidadesanimicas-production.up.railway.app`
+- **Proxy de Desenvolvimento**: Configurado para usar o backend de produção
+- **HTTPS**: Configuração segura para produção
 
 ---
 

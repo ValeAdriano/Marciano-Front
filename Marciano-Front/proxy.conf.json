@@ -1,12 +1,12 @@
 {
   "/api": { 
-    "target": "http://127.0.0.1:8000", 
-    "secure": false, 
+    "target": "https://qualidadesanimicas-production.up.railway.app", 
+    "secure": true, 
     "changeOrigin": true 
   },
   "/socket.io": {
-    "target": "http://127.0.0.1:8000",
-    "secure": false,
+    "target": "https://qualidadesanimicas-production.up.railway.app",
+    "secure": true,
     "ws": true,
     "changeOrigin": true
   }
