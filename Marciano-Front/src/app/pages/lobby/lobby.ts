@@ -49,6 +49,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.lobby.getRoomParticipants(s.roomCode).subscribe({
       next: (participants) => {
         console.log('✅ Participantes iniciais carregados:', participants);
+        console.log('📊 Contagem de participantes:', participants.length);
         // Os participantes são automaticamente atualizados via signal no service
       },
       error: (error) => {
@@ -61,6 +62,13 @@ export class LobbyComponent implements OnInit, OnDestroy {
     // inicializa a sala e conecta ao WebSocket
     console.log('🔌 Inicializando WebSocket...');
     this.lobby.initRoom(s.roomCode);
+    
+    // Log adicional para debug
+    console.log('🔍 Estado inicial dos signals:');
+    console.log('  - participants:', this.participants());
+    console.log('  - count:', this.count());
+    console.log('  - roomStatus:', this.roomStatus());
+    console.log('  - isConnected:', this.isConnected());
   }
 
   ngOnDestroy(): void {
