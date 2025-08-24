@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { HeaderComponent } from './@shared/layout/header/header.component';
+import { VoteStateService } from './@shared/services/vote-state.service';
 
 @Component({
   selector: 'app-root',
@@ -27,6 +28,12 @@ import { HeaderComponent } from './@shared/layout/header/header.component';
     }
   `]
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   title = 'Marciano Front';
+  private readonly voteStateService = inject(VoteStateService);
+
+  ngOnInit(): void {
+    // Limpar estados de votação antigos ao inicializar o app
+    this.voteStateService.cleanupOldVoteStates(24); // Limpar estados com mais de 24 horas
+  }
 } 

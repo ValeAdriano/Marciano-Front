@@ -41,9 +41,21 @@ export class RodadaService implements OnDestroy {
 
   /** Inicializa/retoma a sessão e o timer. */
   init(): void {
-    this._session.set(this.home.getSession());
-    this.setupSocketListeners();
-    this.startTimer(); // começa do total configurado
+    // Verificar se já existe uma sessão ativa
+    const currentSession = this.home.getSession();
+    if (currentSession) {
+      this._session.set(currentSession);
+    }
+    
+    // Só configurar listeners se ainda não foram configurados
+    if (!this.destroy$.closed) {
+      this.setupSocketListeners();
+    }
+    
+    // Só iniciar timer se não houver um ativo
+    if (!this.intervalId) {
+      this.startTimer(); // começa do total configurado
+    }
   }
 
   /** Inicia/reinicia o timer. */

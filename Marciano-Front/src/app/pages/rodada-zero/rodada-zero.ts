@@ -18,6 +18,8 @@ import { Mousewheel, Keyboard, FreeMode } from 'swiper/modules';
 import { RodadaService } from '../rodada/rodada.service';
 import { HomeService } from '../home/home.service';
 import { RodadaZeroApiService, RoomStatus, VoteResult } from './rodada-zero.service';
+import { NavigationService } from '../../@shared/services/navigation.service';
+import { VoteStateService } from '../../@shared/services/vote-state.service';
 
 type Cor = 'Laranja' | 'Verde' | 'Amarelo' | 'Azul' | 'Vermelho' | 'Roxo';
 type Carta = { id: string; cor: Cor; texto: string; planeta?: string; };
@@ -43,6 +45,8 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
   private readonly home = inject(HomeService);
   private readonly router = inject(Router);
   readonly api = inject(RodadaZeroApiService);
+  private readonly navigation = inject(NavigationService);
+  private readonly voteState = inject(VoteStateService);
 
   readonly rodadaNumero = 0;
 
@@ -128,6 +132,9 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
       this.api.connectSocket(code);
       this.setupSocketListeners();
       this.loadRoomStatus();
+      
+      // VERIFICAÇÃO CRÍTICA: Verificar se já votou nesta rodada
+      this.checkLastVote();
     }
   }
 
@@ -167,23 +174,43 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   private setupSocketListeners(): void {
+    console.log('🎧 Configurando listeners do socket...');
+    
     // Escutar eventos de status da sala
     this.subscriptions.push(
       this.api.socketEvents$.subscribe(event => {
+        console.log('📡 Evento recebido via socket:', event);
+        
         switch (event.type) {
           case 'room:status':
+            console.log('🔄 Processando room:status:', event.status);
             this._roomStatus.set(event.status);
             this.handleStatusChange(event.status);
             break;
+          case 'room:finalized':
+            console.log('🏁 Processando room:finalized - navegando para resultados');
+            // Fechar todos os SweetAlerts imediatamente
+            this.forceCloseAllSweetAlerts();
+            // Navegar direto para resultados
+            this.navigateToResults();
+            break;
           case 'vote:progress':
+            console.log('📊 Processando vote:progress:', event.progress);
             this.handleVoteProgress(event.progress);
             break;
           case 'round:finished':
+            console.log('🏁 Processando round:finished');
             this.handleRoundFinished();
             break;
           case 'results:ready':
+            console.log('🎉 Processando results:ready');
             this.handleResultsReady();
             break;
+          case 'connected':
+            console.log('🔌 Socket conectado com ID:', event.socketId);
+            break;
+          default:
+            console.log('❓ Evento não reconhecido:', event);
         }
       })
     );
@@ -200,7 +227,15 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
       const result = await this.api.getRoomStatus(code);
       if (result.ok) {
         this._roomStatus.set(result.data);
-        this.handleStatusChange(result.data);
+        
+        // Usar o NavigationService para verificar se está na tela correta
+        if (!this.navigation.isOnCorrectScreen(result.data)) {
+          // Se não estiver na tela correta, navegar para ela
+          this.navigation.navigateToCorrectScreen(result.data);
+        } else {
+          // Se estiver na tela correta, verificar lastvote
+          this.checkLastVote();
+        }
       } else {
         console.warn('Erro ao carregar status da sala:', result.error);
       }
@@ -212,55 +247,63 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
   private handleStatusChange(status: RoomStatus): void {
     const currentStatus = status.status;
     
-    // Fechar qualquer modal de SweetAlert que esteja aberto
-    Swal.close();
+    // CORREÇÃO CRÍTICA: Fechar TODOS os modais de SweetAlert de forma mais robusta
+    this.forceCloseAllSweetAlerts();
     
-    // Se não estiver mais na rodada_0, redirecionar para o componente rodada
-    if (currentStatus !== 'rodada_0' && currentStatus !== 'lobby') {
-      this.redirectToNextRound(currentStatus);
+    // Limpar o lastvote da rodada anterior quando mudar de status
+    const code = this.roomCode();
+    const previousStatus = this._roomStatus()?.status;
+    if (code && previousStatus && previousStatus !== currentStatus) {
+      // Limpar lastvote da rodada anterior
+      const lastVoteKey = `lastvote_${code}`;
+      localStorage.removeItem(lastVoteKey);
+      
+      // Também limpar no VoteStateService para compatibilidade
+      this.voteState.clearVoteState(code, previousStatus);
     }
+    
+    // Aguardar um pouco para garantir que o SweetAlert foi fechado
+    setTimeout(() => {
+      // Usar o NavigationService para navegar para a tela correta
+      if (!this.navigation.isOnCorrectScreen(status)) {
+        this.navigation.navigateToCorrectScreen(status);
+      }
+    }, 100);
   }
 
-  private async redirectToNextRound(status: string): Promise<void> {
-    // Fechar qualquer modal de SweetAlert que esteja aberto
-    Swal.close();
-
-    if (status === 'finalizado') {
-      // Se a sala foi finalizada, redirecionar para resultados
-      await Swal.fire({
-        title: 'Sala Finalizada!',
-        text: 'Redirecionando para os resultados...',
-        icon: 'info',
-        allowOutsideClick: false,
-        allowEscapeKey: false,
-        allowEnterKey: false,
-        showConfirmButton: false,
-        timer: 2000,
+  /**
+   * Método utilitário para fechar TODOS os SweetAlerts de forma robusta
+   * Usado quando o status muda via socket para garantir que não fiquem modais abertos
+   */
+  private forceCloseAllSweetAlerts(): void {
+    try {
+      // Método 1: Fechar via Swal.close() (método oficial)
+      Swal.close();
+      
+      // Método 2: Fechar via DOM (fallback para casos onde Swal.close() falha)
+      const sweetAlertElements = document.querySelectorAll('.swal2-container');
+      sweetAlertElements.forEach(element => {
+        if (element instanceof HTMLElement) {
+          element.style.display = 'none';
+          element.remove();
+        }
       });
       
-      // Redirecionar para resultados com parâmetros corretos
-      const session = this.home.getSession();
-      if (session) {
-        this.router.navigate(['/resultados', session.roomCode, session.participantId]);
-      } else {
-        console.error('Sessão não encontrada para redirecionamento');
-        this.router.navigate(['/']);
-      }
-    } else if (status.startsWith('rodada_')) {
-      // Se mudou para qualquer rodada (rodada_1, rodada_2, etc.), redirecionar para o componente rodada
-      const roundNumber = status.replace('rodada_', '');
-      await Swal.fire({
-        title: 'Próxima Rodada Iniciada!',
-        text: `Redirecionando para a Rodada ${roundNumber}...`,
-        icon: 'success',
-        allowOutsideClick: false,
-        allowEscapeKey: false,
-        allowEnterKey: false,
-        showConfirmButton: false,
-        timer: 2000,
+      // Método 3: Fechar via backdrop (fallback para backdrops órfãos)
+      const backdrops = document.querySelectorAll('.swal2-backdrop-show');
+      backdrops.forEach(backdrop => {
+        if (backdrop instanceof HTMLElement) {
+          backdrop.style.display = 'none';
+          backdrop.remove();
+        }
       });
-      // Redirecionar para o componente rodada
-      this.router.navigate(['/rodada']);
+      
+      // Método 4: Remover classes de body (limpeza final)
+      document.body.classList.remove('swal2-shown', 'swal2-height-auto');
+      
+      console.log('✅ Todos os SweetAlerts foram fechados com sucesso');
+    } catch (error) {
+      console.warn('⚠️ Erro ao fechar SweetAlerts:', error);
     }
   }
 
@@ -270,6 +313,9 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   private handleRoundFinished(): void {
+    // CORREÇÃO: Fechar qualquer SweetAlert anterior de forma robusta
+    this.forceCloseAllSweetAlerts();
+    
     // Rodada terminou, mostrar mensagem
     Swal.fire({
       title: 'Rodada Finalizada!',
@@ -284,6 +330,9 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   private handleResultsReady(): void {
+    // CORREÇÃO: Fechar qualquer SweetAlert anterior de forma robusta
+    this.forceCloseAllSweetAlerts();
+    
     // Resultados estão prontos, redirecionar
     Swal.fire({
       title: 'Resultados Prontos!',
@@ -345,7 +394,17 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
   onCardClick(id: string) {
     this.selectedCardId.update(curr => (curr === id ? null : id));
   }
-  canDrag = (id: string) => this.selectedCardId() === id;
+  canDrag = (id: string) => {
+    // Verificar se já votou nesta rodada
+    const code = this.roomCode();
+    const currentStatus = this._roomStatus()?.status || 'rodada_0';
+    if (code && this.voteState.hasVotedInCurrentRound(code, currentStatus)) {
+      return false; // Não permitir arraste se já votou
+    }
+    
+    // Só permitir arraste se a carta estiver selecionada
+    return this.selectedCardId() === id;
+  };
 
   onDragStarted(ev: CdkDragStart<Carta>) {
     const id = ev.source.data?.id;
@@ -359,8 +418,18 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
     this.draggingCardId.set(null);
   }
 
-  /** Só aceita drop no próprio alvo e apenas uma carta */
-  canEnterTarget = (alvoId: string) => () => this.ensureBucket(alvoId).length === 0;
+  /** Só aceita drop no próprio alvo e apenas uma carta, E se ainda não votou */
+  canEnterTarget = (alvoId: string) => () => {
+    // Verificar se já votou nesta rodada
+    const code = this.roomCode();
+    const currentStatus = this._roomStatus()?.status || 'rodada_0';
+    if (code && this.voteState.hasVotedInCurrentRound(code, currentStatus)) {
+      return false; // Não permitir drop se já votou
+    }
+    
+    // Verificar se o alvo já tem carta
+    return this.ensureBucket(alvoId).length === 0;
+  };
 
   async onDropToTarget(event: CdkDragDrop<Carta[]>, alvo: Alvo) {
     const destinoId = this.targetListId(alvo.id);
@@ -368,6 +437,23 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
 
     const card = event.previousContainer.data[event.previousIndex];
     if (!card) return;
+
+    // VERIFICAÇÃO CRÍTICA: Verificar se já votou nesta rodada
+    const code = this.roomCode();
+    const currentStatus = this._roomStatus()?.status || 'rodada_0';
+    if (code && this.voteState.hasVotedInCurrentRound(code, currentStatus)) {
+      // Se já votou, mostrar SweetAlert impedindo o voto
+      Swal.fire({
+        title: '❌ Voto Já Realizado!',
+        text: 'Você já realizou sua autoavaliação nesta rodada. Não é possível votar novamente.',
+        icon: 'warning',
+        confirmButtonText: 'Entendi',
+        allowOutsideClick: true,
+        allowEscapeKey: true,
+        allowEnterKey: true,
+      });
+      return; // Impedir continuar com o voto
+    }
 
     if (!this.selectedCardId() || this.selectedCardId() !== card.id) {
       this.toastInfo('Clique na carta antes de arrastar para o seu alvo.');
@@ -427,6 +513,22 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
         this.draggingCardId.set(null);
         this.swiper?.update();
 
+        // Marcar que o usuário votou nesta rodada
+        const code = this.roomCode();
+        const currentStatus = this._roomStatus()?.status || 'rodada_0';
+        if (code) {
+          // Salvar lastvote no localStorage
+          const lastVoteKey = `lastvote_${code}`;
+          localStorage.setItem(lastVoteKey, currentStatus);
+          
+          // Também marcar no VoteStateService para compatibilidade
+          this.voteState.markAsVoted(code, currentStatus, {
+            cardColor: card.cor.toLowerCase(),
+            cardDescription: card.texto,
+            targetId: alvo.id
+          });
+        }
+
         await Swal.fire({
           title: 'Autoavaliação registrada',
           html: 'Aguarde o próximo passo.<br>Esta janela fechará quando a próxima etapa começar.',
@@ -435,7 +537,7 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
           allowEscapeKey: false,
           allowEnterKey: false,
           showConfirmButton: false,
-          didOpen: () => Swal.showLoading(),
+          timer: undefined, // Sem timer automático - será fechado pelo handleStatusChange
         });
       } else {
         this.toastError(`Erro ao registrar voto: ${result.error}`);
@@ -503,5 +605,100 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
       'finalizado': '🏁 Finalizado'
     };
     return statusMap[status] || status;
+  }
+
+  private checkAndRestoreVoteState(): void {
+    const code = this.roomCode();
+    const currentStatus = this._roomStatus()?.status || 'rodada_0';
+    
+    if (!code) return;
+
+    // Verificar se já votou nesta rodada
+    if (this.voteState.hasVotedInCurrentRound(code, currentStatus)) {
+      // Se já votou, mostrar mensagem e desabilitar interação
+      this.showAlreadyVotedMessage();
+      
+      // Restaurar o estado visual (carta no alvo)
+      this.restoreVoteVisualState(code, currentStatus);
+    }
+  }
+
+  private showAlreadyVotedMessage(): void {
+    // Mostrar mensagem de que já votou
+    Swal.fire({
+      title: 'Você já votou nesta rodada!',
+      text: 'Aguarde o próximo passo. Esta janela fechará automaticamente quando a próxima etapa começar.',
+      icon: 'info',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      allowEnterKey: false,
+      showConfirmButton: false,
+      timer: undefined, // Sem timer automático - será fechado pelo handleStatusChange
+    });
+  }
+
+  private restoreVoteVisualState(roomCode: string, roundStatus: string): void {
+    const voteData = this.voteState.getCurrentVoteData(roomCode, roundStatus);
+    if (!voteData) return;
+
+    // Encontrar a carta que foi votada
+    const votedCard = this.hand().find(card => 
+      card.cor.toLowerCase() === voteData.cardColor && 
+      card.texto === voteData.cardDescription
+    );
+
+    if (votedCard) {
+      // Remover a carta da mão
+      this.hand.update(hand => hand.filter(card => card.id !== votedCard.id));
+      
+      // Adicionar a carta ao alvo (próprio usuário)
+      const selfAlvo = this.alvos().find(a => a.isSelf);
+      if (selfAlvo) {
+        this.assigned[selfAlvo.id] = [votedCard];
+      }
+    }
+  }
+
+  private checkLastVote(): void {
+    const code = this.roomCode();
+    if (!code) return;
+
+    // Buscar lastvote do localStorage
+    const lastVoteKey = `lastvote_${code}`;
+    const lastVote = localStorage.getItem(lastVoteKey);
+    
+    // Se existe lastvote e é igual à rodada atual (rodada_0), mostrar SweetAlert
+    if (lastVote === 'rodada_0') {
+      this.showWaitingForNextRoundMessage();
+      this.disableVoting();
+    }
+  }
+
+  private showWaitingForNextRoundMessage(): void {
+    Swal.fire({
+      title: '⏳ Aguardando Próxima Rodada',
+      text: 'Você já realizou sua autoavaliação nesta rodada. Aguarde o próximo passo.',
+      icon: 'info',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      allowEnterKey: false,
+      showConfirmButton: false,
+      timer: undefined, // Sem timer automático
+    });
+  }
+
+  private disableVoting(): void {
+    // Desabilitar todas as cartas visualmente
+    this.hand.update(hand => hand.map(card => ({ ...card, disabled: true })));
+  }
+
+  private navigateToResults(): void {
+    const session = this.home.getSession();
+    if (session) {
+      this.router.navigate(['/resultados', session.roomCode, session.participantId]);
+    } else {
+      console.error('Sessão não encontrada para redirecionamento de resultados');
+      this.router.navigate(['/']);
+    }
   }
 }

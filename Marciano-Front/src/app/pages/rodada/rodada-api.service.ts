@@ -78,7 +78,8 @@ type SocketEventsOut =
   | { type: 'vote:progress'; progress: number }
   | { type: 'round:finished' }
   | { type: 'results:ready' }
-  | { type: 'room:status'; status: RoomStatus };
+  | { type: 'room:status'; status: RoomStatus }
+  | { type: 'room:finalized'; status: RoomStatus };
 
 @Injectable({ providedIn: 'root' })
 export class RodadaApiService implements OnDestroy {
@@ -211,6 +212,8 @@ export class RodadaApiService implements OnDestroy {
   connectSocket(roomCode: string) {
     if (this.socket?.connected) return;
 
+    console.log('🔌 Conectando socket para sala:', roomCode);
+
     this.socket = io(environment.socketUrl, {
       transports: ['websocket'],
       autoConnect: true,
@@ -224,32 +227,67 @@ export class RodadaApiService implements OnDestroy {
     const s = this.socket;
 
     s.on('connect', () => { 
+      console.log('✅ Socket conectado com ID:', s.id);
       this._connected.set(true); 
       this._socketEvents$.next({ type: 'connected', socketId: s.id! }); 
     });
     
-    s.on('disconnect', () => this._connected.set(false));
+    s.on('disconnect', (reason) => {
+      console.log('❌ Socket desconectado:', reason);
+      this._connected.set(false);
+    });
     
     s.on('connect_error', (error) => {
-      console.error('Erro de conexão WebSocket:', error);
+      console.error('❌ Erro de conexão WebSocket:', error);
     });
 
-    s.on('room:joined', (p: { participants: Participant[] }) =>
-      this._socketEvents$.next({ type: 'room:joined', participants: p.participants }));
+    s.on('room:joined', (p: { participants: Participant[] }) => {
+      console.log('👥 Evento room:joined recebido:', p);
+      this._socketEvents$.next({ type: 'room:joined', participants: p.participants });
+    });
 
-    s.on('round:started', (p: { totalSeconds: number }) =>
-      this._socketEvents$.next({ type: 'round:started', totalSeconds: p.totalSeconds }));
+    s.on('round:started', (p: { totalSeconds: number }) => {
+      console.log('🎯 Evento round:started recebido:', p);
+      this._socketEvents$.next({ type: 'round:started', totalSeconds: p.totalSeconds });
+    });
 
-    s.on('vote:progress', (p: { progress: number }) =>
-      this._socketEvents$.next({ type: 'vote:progress', progress: p.progress }));
+    s.on('vote:progress', (p: { progress: number }) => {
+      console.log('📊 Evento vote:progress recebido:', p);
+      this._socketEvents$.next({ type: 'vote:progress', progress: p.progress });
+    });
 
-    s.on('round:finished', () => this._socketEvents$.next({ type: 'round:finished' }));
-    s.on('results:ready', () => this._socketEvents$.next({ type: 'results:ready' }));
+    s.on('round:finished', () => {
+      console.log('🏁 Evento round:finished recebido');
+      this._socketEvents$.next({ type: 'round:finished' });
+    });
     
-    s.on('room:status', (status: RoomStatus) => 
-      this._socketEvents$.next({ type: 'room:status', status }));
+    s.on('results:ready', () => {
+      console.log('🎉 Evento results:ready recebido');
+      this._socketEvents$.next({ type: 'results:ready' });
+    });
+    
+    s.on('room:status', (status: RoomStatus) => {
+      console.log('🔄 Evento room:status recebido:', status);
+      
+      // VERIFICAÇÃO ESPECIAL: Se o status for "finalizado", emitir evento específico
+      if (status.status === 'finalizado') {
+        console.log('🏁 Status finalizado detectado via socket, emitindo evento específico');
+        this._socketEvents$.next({ type: 'room:status', status });
+        // Também emitir um evento específico para finalização
+        this._socketEvents$.next({ type: 'room:finalized', status });
+      } else {
+        this._socketEvents$.next({ type: 'room:status', status });
+      }
+    });
+
+    // Listener para debug - quando o servidor responde ao get_room_status
+    s.on('room:status_response', (status: RoomStatus) => {
+      console.log('🔄 Evento room:status_response recebido:', status);
+      this._socketEvents$.next({ type: 'room:status', status });
+    });
 
     // Emitir evento para entrar na sala
+    console.log('🚪 Emitindo join_room para sala:', roomCode);
     s.emit('join_room', { room_code: roomCode });
   }
 
@@ -259,6 +297,18 @@ export class RodadaApiService implements OnDestroy {
     this.socket.disconnect();
     this.socket = undefined;
     this._connected.set(false);
+  }
+
+  /**
+   * Emite um evento via socket (método público para debug)
+   */
+  emitSocketEvent(eventName: string, data: any): void {
+    if (this.socket?.connected) {
+      console.log('📡 Emitindo evento via socket:', eventName, data);
+      this.socket.emit(eventName, data);
+    } else {
+      console.warn('⚠️ Socket não está conectado para emitir evento:', eventName);
+    }
   }
 
   ngOnDestroy(): void {

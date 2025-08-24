@@ -18,6 +18,8 @@ import { Mousewheel, Keyboard, FreeMode } from 'swiper/modules';
 import { RodadaService } from './rodada.service';
 import { HomeService } from '../home/home.service';
 import { RodadaApiService, RoomStatus, VoteResult, AvailableParticipants, Card } from './rodada-api.service';
+import { NavigationService } from '../../@shared/services/navigation.service';
+import { VoteStateService } from '../../@shared/services/vote-state.service';
 
 type Cor = 'Laranja' | 'Verde' | 'Amarelo' | 'Azul' | 'Vermelho' | 'Roxo';
 
@@ -43,6 +45,8 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
   private readonly home = inject(HomeService);
   private readonly router = inject(Router);
   readonly api = inject(RodadaApiService);
+  private readonly navigation = inject(NavigationService);
+  private readonly voteState = inject(VoteStateService);
 
   // Número da rodada atual (dinâmico do backend)
   readonly rodadaNumero = computed(() => this._roomStatus()?.current_round || 0);
@@ -133,15 +137,24 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
       return;
     }
 
+    console.log('🚀 RodadaComponent inicializando...');
+
     // Timer local
     this.rodada.init();
 
     // Conecta socket e carrega dados
     const code = this.roomCode();
     if (code) {
+      console.log('🔌 Conectando socket para sala:', code);
       this.api.connectSocket(code);
       this.setupSocketListeners();
       this.loadInitialData();
+      
+      // VERIFICAÇÃO CRÍTICA: Verificar se já votou nesta rodada
+      this.checkLastVote();
+      
+      // Verificar status da conexão do socket
+      this.checkSocketStatus();
     }
   }
 
@@ -195,7 +208,17 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
   onCardClick(id: string) {
     this.selectedCardId.update(curr => (curr === id ? null : id));
   }
-  canDrag = (id: string) => this.selectedCardId() === id;
+  canDrag = (id: string) => {
+    // Verificar se já votou nesta rodada
+    const code = this.roomCode();
+    const currentStatus = this._roomStatus()?.status || 'rodada_1';
+    if (code && this.voteState.hasVotedInCurrentRound(code, currentStatus)) {
+      return false; // Não permitir arraste se já votou
+    }
+    
+    // Só permitir arraste se a carta estiver selecionada
+    return this.selectedCardId() === id;
+  };
 
   onDragStarted(ev: CdkDragStart<Carta>) {
     const id = ev.source.data?.id;
@@ -209,7 +232,17 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
     this.draggingCardId.set(null);
   }
 
-  canEnterTarget = (alvoId: string) => () => this.ensureBucket(alvoId).length === 0;
+  canEnterTarget = (alvoId: string) => () => {
+    // Verificar se já votou nesta rodada
+    const code = this.roomCode();
+    const currentStatus = this._roomStatus()?.status || 'rodada_1';
+    if (code && this.voteState.hasVotedInCurrentRound(code, currentStatus)) {
+      return false; // Não permitir drop se já votou
+    }
+    
+    // Verificar se o alvo já tem carta
+    return this.ensureBucket(alvoId).length === 0;
+  };
 
   async onDropToTarget(event: CdkDragDrop<Carta[]>, alvo: Alvo) {
     const destinoId = this.targetListId(alvo.id);
@@ -217,6 +250,23 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
 
     const card = event.previousContainer.data[event.previousIndex];
     if (!card) return;
+
+    // VERIFICAÇÃO CRÍTICA: Verificar se já votou nesta rodada
+    const code = this.roomCode();
+    const currentStatus = this._roomStatus()?.status || 'rodada_1';
+    if (code && this.voteState.hasVotedInCurrentRound(code, currentStatus)) {
+      // Se já votou, mostrar SweetAlert impedindo o voto
+      Swal.fire({
+        title: '❌ Voto Já Realizado!',
+        text: 'Você já realizou seu voto nesta rodada. Não é possível votar novamente.',
+        icon: 'warning',
+        confirmButtonText: 'Entendi',
+        allowOutsideClick: true,
+        allowEscapeKey: true,
+        allowEnterKey: true,
+      });
+      return; // Impedir continuar com o voto
+    }
 
     if (!this.selectedCardId() || this.selectedCardId() !== card.id) {
       this.toastInfo('Clique na carta antes de arrastar para um alvo.');
@@ -282,6 +332,22 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
         // Recarregar participantes disponíveis
         await this.loadAvailableParticipants();
 
+        // Marcar que o usuário votou nesta rodada
+        const code = this.roomCode();
+        const currentStatus = this._roomStatus()?.status || 'rodada_1';
+        if (code) {
+          // Salvar lastvote no localStorage
+          const lastVoteKey = `lastvote_${code}`;
+          localStorage.setItem(lastVoteKey, currentStatus);
+          
+          // Também marcar no VoteStateService para compatibilidade
+          this.voteState.markAsVoted(code, currentStatus, {
+            cardColor: card.cor.toLowerCase(),
+            cardDescription: card.texto,
+            targetId: alvo.id
+          });
+        }
+
         // Mostrar SweetAlert que será fechado automaticamente quando o status mudar
         Swal.fire({
           title: 'Voto registrado',
@@ -291,7 +357,7 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
           allowEscapeKey: false,
           allowEnterKey: false,
           showConfirmButton: false,
-          timer: undefined, // Sem timer automático
+          timer: undefined, // Sem timer automático - será fechado pelo handleStatusChange
         });
       } else {
         this.toastError(`Erro ao registrar voto: ${result.error}`);
@@ -421,6 +487,9 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
       this.loadRoomStatus()
     ]);
     this.ensureAllBuckets();
+    
+    // Verificar lastvote após carregar todos os dados
+    this.checkLastVote();
   }
 
   private async loadCurrentParticipant(): Promise<void> {
@@ -460,7 +529,15 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
       const result = await this.api.getRoomStatus(code);
       if (result.ok) {
         this._roomStatus.set(result.data);
-        this.handleStatusChange(result.data);
+        
+        // Usar o NavigationService para verificar se está na tela correta
+        if (!this.navigation.isOnCorrectScreen(result.data)) {
+          // Se não estiver na tela correta, navegar para ela
+          this.navigation.navigateToCorrectScreen(result.data);
+        } else {
+          // Se estiver na tela correta, verificar lastvote
+          this.checkLastVote();
+        }
       } else {
         console.warn('Erro ao carregar status da sala:', result.error);
       }
@@ -472,66 +549,123 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
 
 
   private setupSocketListeners(): void {
+    console.log('🎧 Configurando listeners do socket...');
+    
     // Escutar eventos de status da sala
     this.subscriptions.push(
       this.api.socketEvents$.subscribe(event => {
+        console.log('📡 Evento recebido via socket:', event);
+        
         switch (event.type) {
           case 'room:status':
+            console.log('🔄 Processando room:status:', event.status);
             this._roomStatus.set(event.status);
             this.handleStatusChange(event.status);
             break;
+          case 'room:finalized':
+            console.log('🏁 Processando room:finalized - navegando para resultados');
+            // Fechar todos os SweetAlerts imediatamente
+            this.forceCloseAllSweetAlerts();
+            // Navegar direto para resultados
+            this.navigateToResults();
+            break;
           case 'vote:progress':
+            console.log('📊 Processando vote:progress:', event.progress);
             this.handleVoteProgress(event.progress);
             break;
           case 'round:finished':
+            console.log('🏁 Processando round:finished');
             this.handleRoundFinished();
             break;
           case 'results:ready':
+            console.log('🎉 Processando results:ready');
             this.handleResultsReady();
             break;
+          case 'connected':
+            console.log('🔌 Socket conectado com ID:', event.socketId);
+            break;
+          default:
+            console.log('❓ Evento não reconhecido:', event);
         }
       })
     );
   }
 
+  /**
+   * Método utilitário para fechar TODOS os SweetAlerts de forma robusta
+   * Usado quando o status muda via socket para garantir que não fiquem modais abertos
+   */
+  private forceCloseAllSweetAlerts(): void {
+    try {
+      // Método 1: Fechar via Swal.close() (método oficial)
+      Swal.close();
+      
+      // Método 2: Fechar via DOM (fallback para casos onde Swal.close() falha)
+      const sweetAlertElements = document.querySelectorAll('.swal2-container');
+      sweetAlertElements.forEach(element => {
+        if (element instanceof HTMLElement) {
+          element.style.display = 'none';
+          element.remove();
+        }
+      });
+      
+      // Método 3: Fechar via backdrop (fallback para backdrops órfãos)
+      const backdrops = document.querySelectorAll('.swal2-backdrop-show');
+      backdrops.forEach(backdrop => {
+        if (backdrop instanceof HTMLElement) {
+          backdrop.style.display = 'none';
+          backdrop.remove();
+        }
+      });
+      
+      // Método 4: Remover classes de body (limpeza final)
+      document.body.classList.remove('swal2-shown', 'swal2-height-auto');
+      
+      console.log('✅ Todos os SweetAlerts foram fechados com sucesso');
+    } catch (error) {
+      console.warn('⚠️ Erro ao fechar SweetAlerts:', error);
+    }
+  }
+
   private handleStatusChange(status: RoomStatus): void {
+    console.log('🔄 handleStatusChange chamado com status:', status);
     const currentStatus = status.status;
     
-    // Fechar TODOS os modais de SweetAlert que estejam abertos
-    Swal.close();
+    // CORREÇÃO CRÍTICA: Fechar TODOS os modais de SweetAlert de forma mais robusta
+    this.forceCloseAllSweetAlerts();
+    
+    // VERIFICAÇÃO CRÍTICA: Se o status for "finalizado", navegar direto para resultados
+    if (currentStatus === 'finalizado') {
+      console.log('🏁 Status finalizado detectado, navegando para resultados...');
+      this.navigateToResults();
+      return; // Sair do método para não executar o resto da lógica
+    }
+    
+    // Limpar o lastvote da rodada anterior quando mudar de status
+    const code = this.roomCode();
+    const previousStatus = this._roomStatus()?.status;
+    console.log('📝 Status anterior:', previousStatus, 'Status atual:', currentStatus);
+    
+    if (code && previousStatus && previousStatus !== currentStatus) {
+      console.log('🔄 Status mudou, limpando lastvote da rodada anterior');
+      // Limpar lastvote da rodada anterior
+      const lastVoteKey = `lastvote_${code}`;
+      localStorage.removeItem(lastVoteKey);
+      
+      // Também limpar no VoteStateService para compatibilidade
+      this.voteState.clearVoteState(code, previousStatus);
+    }
     
     // Aguardar um pouco para garantir que o SweetAlert foi fechado
     setTimeout(() => {
-      // Se a sala foi finalizada, redirecionar para resultados
-      if (currentStatus === 'finalizado') {
-        this.redirectToResults();
+      // Usar o NavigationService para verificar se está na tela correta
+      if (!this.navigation.isOnCorrectScreen(status)) {
+        console.log('🧭 Navegando para tela correta...');
+        this.navigation.navigateToCorrectScreen(status);
+      } else {
+        console.log('✅ Já está na tela correta');
       }
     }, 100);
-  }
-
-  private async redirectToResults(): Promise<void> {
-    // Fechar qualquer modal de SweetAlert que esteja aberto
-    Swal.close();
-
-    await Swal.fire({
-      title: 'Sala Finalizada!',
-      text: 'Redirecionando para os resultados...',
-      icon: 'info',
-      allowOutsideClick: false,
-      allowEscapeKey: false,
-      allowEnterKey: false,
-      showConfirmButton: false,
-      timer: 2000,
-    });
-    
-    // Redirecionar para resultados com parâmetros corretos
-    const session = this.home.getSession();
-    if (session) {
-      this.router.navigate(['/resultados', session.roomCode, session.participantId]);
-    } else {
-      console.error('Sessão não encontrada para redirecionamento');
-      this.router.navigate(['/']);
-    }
   }
 
   private handleVoteProgress(progress: number): void {
@@ -540,8 +674,8 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   private handleRoundFinished(): void {
-    // Fechar qualquer SweetAlert anterior antes de mostrar o novo
-    Swal.close();
+    // CORREÇÃO: Fechar qualquer SweetAlert anterior de forma robusta
+    this.forceCloseAllSweetAlerts();
     
     // Rodada terminou, mostrar mensagem
     Swal.fire({
@@ -557,8 +691,8 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   private handleResultsReady(): void {
-    // Fechar qualquer SweetAlert anterior antes de mostrar o novo
-    Swal.close();
+    // CORREÇÃO: Fechar qualquer SweetAlert anterior de forma robusta
+    this.forceCloseAllSweetAlerts();
     
     // Resultados estão prontos, redirecionar
     Swal.fire({
@@ -571,14 +705,189 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
       showConfirmButton: false,
       timer: 2000,
     }).then(() => {
-      // Redirecionar para resultados com parâmetros corretos
-      const session = this.home.getSession();
-      if (session) {
-        this.router.navigate(['/resultados', session.roomCode, session.participantId]);
-      } else {
-        console.error('Sessão não encontrada para redirecionamento');
-        this.router.navigate(['/']);
-      }
+      // Usar o método centralizado para navegar para resultados
+      this.navigateToResults();
     });
+  }
+
+  private checkAndRestoreVoteState(): void {
+    const code = this.roomCode();
+    const currentStatus = this._roomStatus()?.status || 'rodada_1';
+    
+    if (!code) return;
+
+    // Verificar se já votou nesta rodada
+    if (this.voteState.hasVotedInCurrentRound(code, currentStatus)) {
+      // Se já votou, mostrar mensagem e desabilitar interação
+      this.showAlreadyVotedMessage();
+      
+      // Restaurar o estado visual (carta no alvo)
+      this.restoreVoteVisualState(code, currentStatus);
+    }
+  }
+
+  private showAlreadyVotedMessage(): void {
+    // Mostrar mensagem de que já votou
+    Swal.fire({
+      title: 'Você já votou nesta rodada!',
+      text: 'Aguarde os demais participantes. Esta janela fechará automaticamente quando a próxima rodada começar.',
+      icon: 'info',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      allowEnterKey: false,
+      showConfirmButton: false,
+      timer: undefined, // Sem timer automático - será fechado pelo handleStatusChange
+    });
+  }
+
+  private restoreVoteVisualState(roomCode: string, roundStatus: string): void {
+    const voteData = this.voteState.getCurrentVoteData(roomCode, roundStatus);
+    if (!voteData) return;
+
+    // Encontrar a carta que foi votada
+    const votedCard = this.hand().find(card => 
+      card.cor.toLowerCase() === voteData.cardColor && 
+      card.texto === voteData.cardDescription
+    );
+
+    if (votedCard && voteData.targetId) {
+      // Remover a carta da mão
+      this.hand.update(hand => hand.filter(card => card.id !== votedCard.id));
+      
+      // Adicionar a carta ao alvo correto
+      this.assigned[voteData.targetId] = [votedCard];
+    }
+  }
+
+  private checkLastVote(): void {
+    const code = this.roomCode();
+    if (!code) return;
+
+    // Buscar lastvote do localStorage
+    const lastVoteKey = `lastvote_${code}`;
+    const lastVote = localStorage.getItem(lastVoteKey);
+    
+    // Se existe lastvote e é igual à rodada atual, mostrar SweetAlert
+    const currentStatus = this._roomStatus()?.status || 'rodada_1';
+    if (lastVote === currentStatus) {
+      this.showWaitingForNextRoundMessage();
+      this.disableVoting();
+    }
+  }
+
+  private showWaitingForNextRoundMessage(): void {
+    Swal.fire({
+      title: '⏳ Aguardando Próxima Rodada',
+      text: 'Você já realizou seu voto nesta rodada. Aguarde os demais participantes.',
+      icon: 'info',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      allowEnterKey: false,
+      showConfirmButton: false,
+      timer: undefined, // Sem timer automático
+    });
+  }
+
+  private disableVoting(): void {
+    // Desabilitar todas as cartas visualmente
+    this.hand.update(hand => hand.map(card => ({ ...card, disabled: true })));
+  }
+
+  /**
+   * Força a atualização do status da sala via socket
+   * Método de debug para testar a conexão
+   */
+  forceStatusUpdate(): void {
+    const code = this.roomCode();
+    if (!code) {
+      console.warn('❌ Nenhum código de sala disponível');
+      return;
+    }
+
+    console.log('🔄 Forçando atualização de status para sala:', code);
+    
+    // Verificar se o socket está conectado
+    if (!this.api.connected()) {
+      console.warn('⚠️ Socket não está conectado, reconectando...');
+      this.api.connectSocket(code);
+      return;
+    }
+
+    // Emitir evento para solicitar status atualizado
+    console.log('📡 Emitindo get_room_status via socket');
+    this.api.emitSocketEvent('get_room_status', { room_code: code });
+
+    // Também fazer uma requisição HTTP como fallback
+    this.loadRoomStatus();
+  }
+
+  /**
+   * Verifica o status da conexão do socket para debug
+   */
+  private checkSocketStatus(): void {
+    setTimeout(() => {
+      const isConnected = this.api.connected();
+      console.log('🔌 Status da conexão do socket:', isConnected ? '✅ Conectado' : '❌ Desconectado');
+      
+      if (!isConnected) {
+        console.warn('⚠️ Socket não está conectado, tentando reconectar...');
+        const code = this.roomCode();
+        if (code) {
+          this.api.connectSocket(code);
+        }
+      }
+      
+      // Verificar periodicamente o status da sala como fallback
+      this.startPeriodicStatusCheck();
+    }, 2000); // Verificar após 2 segundos
+  }
+
+  /**
+   * Inicia verificação periódica do status da sala como fallback
+   * Útil para casos onde o socket não está funcionando
+   */
+  private startPeriodicStatusCheck(): void {
+    const code = this.roomCode();
+    if (!code) return;
+
+    // Verificar a cada 10 segundos
+    setInterval(async () => {
+      try {
+        console.log('🔄 Verificação periódica de status da sala...');
+        const result = await this.api.getRoomStatus(code);
+        
+        if (result.ok) {
+          const currentStatus = result.data.status;
+          const previousStatus = this._roomStatus()?.status;
+          
+          // Se o status mudou para "finalizado", navegar para resultados
+          if (currentStatus === 'finalizado' && previousStatus !== 'finalizado') {
+            console.log('🏁 Status finalizado detectado via verificação periódica');
+            this.forceCloseAllSweetAlerts();
+            this.navigateToResults();
+            return;
+          }
+          
+          // Se o status mudou, atualizar
+          if (previousStatus !== currentStatus) {
+            console.log('🔄 Status mudou via verificação periódica:', previousStatus, '->', currentStatus);
+            this._roomStatus.set(result.data);
+            this.handleStatusChange(result.data);
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Erro na verificação periódica de status:', error);
+      }
+    }, 10000); // A cada 10 segundos
+  }
+
+  private navigateToResults(): void {
+    const session = this.home.getSession();
+    if (session) {
+      this.router.navigate(['/resultados', session.roomCode, session.participantId]);
+    } else {
+      console.error('Sessão não encontrada para redirecionamento de resultados');
+      this.router.navigate(['/']);
+    }
   }
 }
