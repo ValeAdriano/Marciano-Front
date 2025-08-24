@@ -44,21 +44,6 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.session.set(s);
     this.roomCode.set(s.roomCode);
 
-    // Busca participantes da sala via API
-    console.log('📡 Carregando participantes iniciais...');
-    this.lobby.getRoomParticipants(s.roomCode).subscribe({
-      next: (participants) => {
-        console.log('✅ Participantes iniciais carregados:', participants);
-        console.log('📊 Contagem de participantes:', participants.length);
-        // Os participantes são automaticamente atualizados via signal no service
-      },
-      error: (error) => {
-        console.error('❌ Erro ao carregar participantes iniciais:', error);
-        // Fallback para dados mock se a API falhar
-        this.lobby.loadMockParticipants();
-      }
-    });
-
     // inicializa a sala e conecta ao WebSocket
     console.log('🔌 Inicializando WebSocket...');
     this.lobby.initRoom(s.roomCode);
@@ -69,10 +54,17 @@ export class LobbyComponent implements OnInit, OnDestroy {
     console.log('  - count:', this.count());
     console.log('  - roomStatus:', this.roomStatus());
     console.log('  - isConnected:', this.isConnected());
+    
+    // Log adicional para debug
+    console.log('✅ Lobby inicializado com sucesso');
+    console.log('🔍 Sessão configurada:', this.session());
+    console.log('🔍 Código da sala configurado:', this.roomCode());
   }
 
   ngOnDestroy(): void {
     // Cleanup automático via service
+    console.log('🛑 Destruindo componente do lobby...');
+    console.log('✅ Cleanup automático via service');
   }
 
   // Calcula a porcentagem de progresso da votação (máximo 100%)
@@ -94,7 +86,17 @@ export class LobbyComponent implements OnInit, OnDestroy {
     
     // Garantir que a porcentagem não exceda 100%
     const percentage = Math.min((currentVotes / expectedVotes) * 100, 100);
-    return Math.round(percentage);
+    const roundedPercentage = Math.round(percentage);
+    
+    // Log adicional para debug
+    console.log('📊 Progresso da votação:', {
+      currentVotes,
+      expectedVotes,
+      percentage,
+      roundedPercentage
+    });
+    
+    return roundedPercentage;
   }
 
   // Exibe o status da rodada de forma amigável
@@ -127,26 +129,52 @@ export class LobbyComponent implements OnInit, OnDestroy {
       }
     }
     
-    return statusMap[status] || status;
+    const displayStatus = statusMap[status] || status;
+    
+    // Log adicional para debug
+    console.log('🔍 Status da rodada:', { status, displayStatus });
+    
+    return displayStatus;
   }
 
   // Verifica se deve mostrar o botão de iniciar rodada
   canStartRound(): boolean {
     const status = this.roomStatus();
-    return status?.status === 'lobby' && this.count() >= 2;
+    const canStart = status?.status === 'lobby' && this.count() >= 2;
+    
+    // Log adicional para debug
+    console.log('🔍 Pode iniciar rodada:', {
+      status: status?.status,
+      count: this.count(),
+      canStart
+    });
+    
+    return canStart;
   }
 
   // Verifica se deve mostrar mensagem de redirecionamento
   shouldShowRedirectMessage(): boolean {
     const status = this.roomStatus();
+    const shouldShow = status?.status !== 'lobby' && status?.status !== 'finalizado' && status?.status !== undefined;
+    
+    // Log adicional para debug
+    console.log('🔍 Deve mostrar mensagem de redirecionamento:', {
+      status: status?.status,
+      shouldShow
+    });
+    
     // Só mostrar mensagem se estiver em uma rodada ativa (não lobby e não finalizado)
-    return status?.status !== 'lobby' && status?.status !== 'finalizado' && status?.status !== undefined;
+    return shouldShow;
   }
 
   // botão: copiar código da sala
   async copyRoomCode(): Promise<void> {
     const code = this.roomCode();
     const env = this.session()?.envelopeHex ?? '#0067b1';
+    
+    // Log adicional para debug
+    console.log('📋 Copiando código da sala:', { code, env });
+    
     try {
       await navigator.clipboard.writeText(code);
       await Swal.fire({
@@ -164,6 +192,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
           }
         },
       });
+      
+      // Log adicional para debug
+      console.log('✅ Código copiado com sucesso');
     } catch {
       await Swal.fire({
         title: 'Falha ao copiar',
@@ -172,20 +203,32 @@ export class LobbyComponent implements OnInit, OnDestroy {
         confirmButtonText: 'OK',
         confirmButtonColor: env,
       });
+      
+      // Log adicional para debug
+      console.log('❌ Falha ao copiar código');
     }
   }
 
-  // badge “Conectado/Desconectado”
+  // badge "Conectado/Desconectado"
   statusClasses(p: LobbyParticipant): string {
-    return p.status === 'connected'
+    const isConnected = p.status === 'connected';
+    const classes = isConnected
       ? 'inline-flex items-center rounded-full bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1'
       : 'inline-flex items-center rounded-full bg-gray-100 text-gray-600 text-xs font-medium px-2.5 py-1';
+    
+    // Log adicional para debug
+    console.log('🔍 Classes de status:', { participant: p.name, status: p.status, isConnected, classes });
+    
+    return classes;
   }
 
   // Inicia a rodada (apenas para facilitadores)
   startRound(): void {
     const roomCode = this.roomCode();
     if (!roomCode) return;
+
+    // Log adicional para debug
+    console.log('🚀 Iniciando rodada para sala:', roomCode);
 
     Swal.fire({
       title: 'Iniciar Rodada?',
@@ -209,13 +252,18 @@ export class LobbyComponent implements OnInit, OnDestroy {
           confirmButtonColor: '#28a745'
         });
         
-        console.log('Rodada iniciada!');
+        console.log('✅ Rodada iniciada com sucesso!');
+      } else {
+        console.log('❌ Início da rodada cancelado pelo usuário');
       }
     });
   }
 
   // Sai da sala
   leaveRoom(): void {
+    // Log adicional para debug
+    console.log('🚪 Solicitando saída da sala...');
+
     Swal.fire({
       title: 'Sair da Sala?',
       text: 'Tem certeza que deseja sair?',
@@ -227,9 +275,23 @@ export class LobbyComponent implements OnInit, OnDestroy {
       cancelButtonColor: '#6c757d'
     }).then((result) => {
       if (result.isConfirmed) {
+        console.log('✅ Usuário confirmou saída da sala');
         this.lobby.leaveRoom();
         this.router.navigateByUrl('/');
+      } else {
+        console.log('❌ Saída da sala cancelada pelo usuário');
       }
     });
+  }
+
+  // Força atualização da lista de participantes
+  refreshParticipants(): void {
+    console.log('🔄 Atualizando lista de participantes...');
+    console.log('🔍 Sala atual:', this.roomCode());
+    console.log('📊 Participantes atuais:', this.count());
+    this.lobby.forceRefreshParticipants();
+    
+    // Log adicional para debug
+    console.log('✅ Atualização de participantes solicitada');
   }
 }

@@ -69,11 +69,26 @@ export class LobbyService implements OnDestroy {
     console.log('🔧 Inicializando LobbyService...');
     console.log('🔌 URL do WebSocket:', environment.socketUrl);
     console.log('🌐 URL da API:', environment.apiUrl);
+    console.log('🔧 Configurações do socket:', {
+      reconnectionAttempts: environment.socket.reconnectionAttempts,
+      reconnectionDelay: environment.socket.reconnectionDelay,
+      timeout: environment.socket.timeout
+    });
     
-    this.socket = io(environment.socketUrl);
+    this.socket = io(environment.socketUrl, {
+      transports: ['websocket', 'polling'],
+      autoConnect: false,
+      reconnection: true,
+      reconnectionAttempts: environment.socket.reconnectionAttempts,
+      reconnectionDelay: environment.socket.reconnectionDelay,
+      timeout: environment.socket.timeout
+    });
+    
     this.setupEventListeners();
     
     console.log('✅ LobbyService inicializado com sucesso');
+    console.log('🔍 Socket criado:', !!this.socket);
+    console.log('🔍 Socket conectado:', this.socket.connected);
   }
 
   /**
@@ -105,7 +120,7 @@ export class LobbyService implements OnDestroy {
     // Entra na sala via WebSocket
     this.joinRoom(roomCode, session.participantId);
 
-    // Configura listeners do WebSocket
+    // Configura listeners específicos da sala
     this.setupSocketListeners();
 
     // Carrega participantes iniciais da API
@@ -118,6 +133,8 @@ export class LobbyService implements OnDestroy {
     this.startStatusMonitoring(roomCode);
     
     console.log('✅ Sala inicializada com sucesso');
+    console.log('📊 Estado inicial dos participantes:', this.count());
+    console.log('🔍 Signal _participants:', this._participants());
   }
 
   /**
@@ -132,9 +149,17 @@ export class LobbyService implements OnDestroy {
         this._participants.set(participants);
         console.log('✅ Signal _participants atualizado:', this._participants());
         console.log('📊 Contagem após atualização:', this.count());
+        
+        // Verifica se os dados foram realmente atualizados
+        if (this._participants().length !== participants.length) {
+          console.warn('⚠️ Inconsistência na contagem de participantes');
+          console.warn('  - API retornou:', participants.length);
+          console.warn('  - Signal atual:', this._participants().length);
+        }
       },
       error: (error) => {
         console.error('❌ Erro ao carregar participantes:', error);
+        console.log('🔄 Tentando carregar dados mock como fallback...');
         // Fallback para dados mock se a API falhar
         this.loadMockParticipants();
       }
@@ -176,6 +201,7 @@ export class LobbyService implements OnDestroy {
         }));
         
         console.log('🔄 Dados transformados:', transformed);
+        console.log('📊 Contagem de dados transformados:', transformed.length);
         return transformed;
       })
     );
@@ -188,7 +214,7 @@ export class LobbyService implements OnDestroy {
     console.log('🔌 Configurando listeners específicos da sala...');
     
     // Participante entrou
-    this.socket.on('room:joined', (event: ParticipantJoinEvent) => {
+    this.socket.on('participant:joined', (event: ParticipantJoinEvent) => {
       console.log('🚪 Novo participante entrou:', event);
       
       // Busca participantes atualizados da API
@@ -196,7 +222,7 @@ export class LobbyService implements OnDestroy {
     });
 
     // Participante saiu
-    this.socket.on('room:left', (event: { participant_id: string }) => {
+    this.socket.on('participant:left', (event: { participant_id: string }) => {
       console.log('🚪 Participante saiu:', event);
       
       // Busca participantes atualizados da API
@@ -223,6 +249,21 @@ export class LobbyService implements OnDestroy {
       // Recarrega o status da sala
       this.loadRoomStatus(event.room_code);
     });
+
+    // Eventos adicionais para garantir sincronização
+    this.socket.on('room:participants_updated', () => {
+      console.log('🔄 Lista de participantes atualizada via WebSocket');
+      this.refreshParticipants();
+    });
+
+    this.socket.on('room:sync', () => {
+      console.log('🔄 Sincronização solicitada pelo servidor');
+      this.refreshParticipants();
+    });
+
+    // Log adicional para debug
+    console.log('✅ Listeners do WebSocket configurados com sucesso');
+    console.log('🔍 Eventos configurados: participant:joined, participant:left, participant:ready, room:status_updated, round:started, room:participants_updated, room:sync');
   }
 
   /**
@@ -241,9 +282,16 @@ export class LobbyService implements OnDestroy {
         console.log('🔄 Lista de participantes atualizada:', participants);
         console.log('📊 Nova contagem:', participants.length);
         this._participants.set(participants);
+        
+        // Log adicional para debug
+        console.log('✅ Signal _participants atualizado na refresh:', this._participants());
+        console.log('📊 Contagem após refresh:', this.count());
       },
       error: (error) => {
         console.error('❌ Erro ao atualizar participantes:', error);
+        console.log('🔄 Tentando carregar dados mock como fallback...');
+        // Fallback para dados mock se a API falhar
+        this.loadMockParticipants();
       }
     });
   }
@@ -288,6 +336,10 @@ export class LobbyService implements OnDestroy {
 
     console.log('✅ Participantes mock carregados:', seed);
     this._participants.set(seed);
+    
+    // Log adicional para debug
+    console.log('📊 Contagem após carregar mock:', this.count());
+    console.log('✅ Signal _participants atualizado com mock:', this._participants());
   }
 
   /**
@@ -298,9 +350,12 @@ export class LobbyService implements OnDestroy {
     console.log('📋 Listando participantes para sala:', roomCode);
     console.log('📊 Participantes atuais:', this._participants());
     
-    // Em um futuro próximo, aqui você ouviria o socket:
-    // this.socket.on('room:joined', ...);
-    // this.socket.on('room:left', ...);
+    // Se não há participantes, tenta carregar da API
+    if (this._participants().length === 0) {
+      console.log('🔄 Nenhum participante encontrado, carregando da API...');
+      this.loadParticipantsFromApi(roomCode);
+    }
+    
     return of(this._participants()).pipe(delay(250));
   }
 
@@ -324,6 +379,10 @@ export class LobbyService implements OnDestroy {
     console.log('📊 Participantes depois:', newParticipants.length);
     
     this._participants.set(newParticipants);
+    
+    // Log adicional para debug
+    console.log('✅ Signal _participants atualizado:', this._participants());
+    console.log('📊 Contagem após simulação:', this.count());
   }
 
   /**
@@ -334,6 +393,7 @@ export class LobbyService implements OnDestroy {
     
     this.socket.on('connect', () => {
       console.log('🔌 Conectado ao servidor WebSocket');
+      console.log('🔍 Socket ID:', this.socket.id);
       this.connected$.next(true);
     });
 
@@ -349,14 +409,18 @@ export class LobbyService implements OnDestroy {
     this.socket.on('error', (error) => {
       console.error('❌ Erro geral do WebSocket:', error);
     });
+
+    // Log adicional para debug
+    console.log('✅ Listeners básicos do WebSocket configurados com sucesso');
+    console.log('🔍 Eventos básicos configurados: connect, disconnect, connect_error, error');
   }
 
   /**
    * Entra na sala via WebSocket
    */
   joinRoom(roomCode: string, participantId: string): void {
-    console.log('🚪 Entrando na sala via WebSocket:', { room_id: roomCode, participant_id: participantId });
-    this.socket.emit('join_room', { room_id: roomCode, participant_id: participantId });
+    console.log('🚪 Entrando na sala via WebSocket:', { room_code: roomCode, participant_id: participantId });
+    this.socket.emit('room:join', { room_code: roomCode, participant_id: participantId });
   }
 
   /**
@@ -364,7 +428,7 @@ export class LobbyService implements OnDestroy {
    */
   leaveRoom(): void {
     console.log('🚪 Saindo da sala...');
-    this.socket.emit('leave_room');
+    this.socket.emit('room:leave');
     this._participants.set([]);
     console.log('✅ Sala limpa, participantes removidos');
   }
@@ -374,7 +438,7 @@ export class LobbyService implements OnDestroy {
    */
   setReady(participantId: string, isReady: boolean): void {
     console.log('✅ Marcando participante como pronto:', { participant_id: participantId, is_ready: isReady });
-    this.socket.emit('set_ready', { participant_id: participantId, is_ready: isReady });
+    this.socket.emit('participant:ready', { participant_id: participantId, is_ready: isReady });
   }
 
   /**
@@ -384,7 +448,7 @@ export class LobbyService implements OnDestroy {
     console.log('🚀 Iniciando rodada para sala:', roomCode);
     
     // Emite evento via WebSocket
-    this.socket.emit('start_round', { room_code: roomCode });
+    this.socket.emit('round:start', { room_code: roomCode });
     
     // Também chama a API para iniciar a rodada
     this.startRoundViaApi(roomCode);
@@ -411,6 +475,9 @@ export class LobbyService implements OnDestroy {
         this.loadRoomStatus(roomCode);
       }
     });
+    
+    // Log adicional para debug
+    console.log('✅ Inicialização da rodada via API concluída');
   }
 
   /**
@@ -418,7 +485,7 @@ export class LobbyService implements OnDestroy {
    */
   finishRound(roomCode: string): void {
     console.log('🏁 Finalizando rodada para sala:', roomCode);
-    this.socket.emit('finish_round', { room_code: roomCode });
+    this.socket.emit('round:finish', { room_code: roomCode });
   }
 
   /**
@@ -453,6 +520,10 @@ export class LobbyService implements OnDestroy {
       };
       console.log('🔄 Definindo status padrão:', defaultStatus);
       this._roomStatus.set(defaultStatus);
+      
+      // Log adicional para debug
+      console.log('✅ Status padrão definido com sucesso');
+      console.log('🔍 Signal _roomStatus após status padrão:', this._roomStatus());
     }
   }
 
@@ -473,11 +544,28 @@ export class LobbyService implements OnDestroy {
       this.loadRoomStatus(roomCode);
     }, 5000);
 
-    // Limpa o intervalo quando o serviço for destruído
+    // Monitoramento de participantes a cada 10 segundos
+    const participantsInterval = setInterval(() => {
+      if (this.destroy$.closed) {
+        console.log('🛑 Monitoramento de participantes interrompido - serviço destruído');
+        clearInterval(participantsInterval);
+        return;
+      }
+      console.log('🔄 Verificando participantes da sala...');
+      this.refreshParticipants();
+    }, 10000);
+
+    // Limpa os intervalos quando o serviço for destruído
     this.destroy$.subscribe(() => {
-      console.log('🛑 Limpando intervalo de monitoramento');
+      console.log('🛑 Limpando intervalos de monitoramento');
       clearInterval(interval);
+      clearInterval(participantsInterval);
     });
+
+    // Log adicional para debug
+    console.log('✅ Monitoramento periódico iniciado com sucesso');
+    console.log('🔍 Status da sala: a cada 5 segundos');
+    console.log('🔍 Participantes: a cada 10 segundos');
   }
 
   /**
@@ -515,6 +603,10 @@ export class LobbyService implements OnDestroy {
         console.log('🔄 Mantendo no lobby...');
         break;
     }
+    
+    // Log adicional para debug
+    console.log('✅ Verificação de redirecionamento concluída');
+    console.log('🔍 Status final:', roomStatus.status);
   }
 
   /**
@@ -530,6 +622,9 @@ export class LobbyService implements OnDestroy {
       console.error('❌ Sessão não encontrada para redirecionamento');
       this.router.navigate(['/']);
     }
+    
+    // Log adicional para debug
+    console.log('✅ Redirecionamento para resultados concluído');
   }
 
   /**
@@ -549,6 +644,8 @@ export class LobbyService implements OnDestroy {
             max_rounds: status.max_rounds,
             participants_count: status.participants_count
           });
+        } else {
+          console.warn('⚠️ Status da sala retornou null/undefined');
         }
       }),
       takeUntil(this.destroy$)
@@ -568,6 +665,22 @@ export class LobbyService implements OnDestroy {
     this.loadRoomStatus(roomCode);
     
     console.log('✅ Recarregamento de dados iniciado');
+    console.log('🔍 Participantes e status sendo recarregados...');
+  }
+
+  /**
+   * Método público para forçar atualização da lista de participantes
+   */
+  forceRefreshParticipants(): void {
+    const session = this.home.getSession();
+    if (session?.roomCode) {
+      console.log('🔄 Forçando atualização de participantes...');
+      console.log('🔍 Sala:', session.roomCode);
+      console.log('📊 Participantes atuais antes da atualização:', this.count());
+      this.refreshParticipants();
+    } else {
+      console.warn('⚠️ Sessão não encontrada para forçar atualização');
+    }
   }
 
   ngOnDestroy(): void {
@@ -581,5 +694,8 @@ export class LobbyService implements OnDestroy {
       console.log('🔌 Desconectando WebSocket...');
       this.socket.disconnect();
     }
+    
+    // Log adicional para debug
+    console.log('✅ LobbyService destruído com sucesso');
   }
 }
