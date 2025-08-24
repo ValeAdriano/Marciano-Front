@@ -123,7 +123,7 @@ export class RodadaApiService implements OnDestroy {
     }
   }
 
-  // ====== Participantes disponíveis para votação ======
+  // ====== Participantes disponíveis para rodada ======
   async getAvailableParticipants(roomCode: string, participantId: string): Promise<ApiResponse<AvailableParticipants>> {
     try {
       const obs = this.http.get<AvailableParticipants>(
@@ -151,7 +151,7 @@ export class RodadaApiService implements OnDestroy {
     }
   }
 
-  // ====== Enviar voto ======
+  // ====== Enviar Carta ======
   async sendVote(input: SendVoteIn): Promise<ApiResponse<VoteResult>> {
     const { roomCode, fromParticipantId, toParticipantId, cardColor, cardDescription } = input;
 
@@ -164,7 +164,7 @@ export class RodadaApiService implements OnDestroy {
         return { ok: false, error: 'ID do participante inválido' };
       }
 
-      console.log('Enviando voto:', {
+      console.log('Enviando carta:', {
         room_code: roomCode,
         from_participant: fromParticipantIdNum,
         to_participant: toParticipantIdNum,
@@ -188,7 +188,7 @@ export class RodadaApiService implements OnDestroy {
       this._socketEvents$.next({ type: 'vote:progress', progress: 1 });
       return { ok: true, data };
     } catch (e: any) {
-      console.error('Erro ao enviar voto:', e);
+      console.error('Erro ao enviar carta:', e);
       return { ok: false, error: e?.message ?? 'sendVote failed' };
     }
   }

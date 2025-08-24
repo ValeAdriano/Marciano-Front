@@ -213,16 +213,16 @@
                         </div>
                       </div>
                       
-                      <!-- Progresso da Votação -->
+                      <!-- Progresso da Rodada -->
                       <div class="bg-white p-3 rounded-lg border border-gray-200">
-                        <h5 class="text-xs font-medium text-gray-700 mb-2">🗳️ Progresso da Votação</h5>
+                        <h5 class="text-xs font-medium text-gray-700 mb-2">🗳️ Progresso da Rodada</h5>
                         <div class="space-y-2 text-xs">
                           <div class="flex justify-between">
-                            <span class="text-gray-600">Votos Atuais:</span>
+                            <span class="text-gray-600">Cartas Atuais:</span>
                             <span class="font-medium">{{ getRoomStatus(r.code)?.round_progress?.current_votes || 0 }}</span>
                           </div>
                           <div class="flex justify-between">
-                            <span class="text-gray-600">Votos Esperados:</span>
+                            <span class="text-gray-600">Cartas Esperados:</span>
                             <span class="text-gray-600">{{ getRoomStatus(r.code)?.round_progress?.expected_votes || 0 }}</span>
                           </div>
                           <div class="w-full bg-gray-200 rounded-full h-2">
@@ -262,9 +262,9 @@
                           type="button"
                           class="inline-flex items-center px-3 py-1 rounded bg-yellow-600 text-white text-xs font-medium hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500"
                           (click)="clearAllVotes(r.code)"
-                          title="Limpar todos os votos"
+                          title="Limpar todas as cartas"
                         >
-                          🗳️ Limpar Votos
+                          🗳️ Limpar Cartas
                         </button>
                         
                         <button 
@@ -339,7 +339,7 @@
           
           <!-- Gráfico de Resultados -->
           <div class="bg-gray-50 rounded-lg p-4">
-            <h4 class="text-lg font-semibold text-gray-800 mb-4">📈 Resumo de Votos por Planeta</h4>
+            <h4 class="text-lg font-semibold text-gray-800 mb-4">📈 Resumo de Cartas por Planeta</h4>
             <div class="h-80">
               <canvas #resultsChartCanvas></canvas>
             </div>
@@ -350,7 +350,7 @@
             
             <!-- Resumo por Planeta -->
             <div class="bg-white rounded-lg border border-gray-200 p-4">
-              <h4 class="text-lg font-semibold text-gray-800 mb-4">🎨 Votos por Planeta</h4>
+              <h4 class="text-lg font-semibold text-gray-800 mb-4">🎨 Cartas por Planeta</h4>
               <div class="space-y-3">
                 <div *ngFor="let colorResult of getAggregatedResults(currentResults()!)" class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div class="flex items-center">
@@ -369,7 +369,7 @@
                 <div *ngFor="let participant of currentResults()!.participants_results" class="p-3 bg-gray-50 rounded-lg">
                   <div class="flex items-center justify-between mb-2">
                     <span class="font-medium text-gray-700">{{ participant.name }}</span>
-                    <span class="text-sm text-gray-500">{{ participant.total_votes }} votos</span>
+                    <span class="text-sm text-gray-500">{{ participant.total_votes }} cartas</span>
                   </div>
                   <div class="flex items-center">
                     <div class="w-3 h-3 rounded-full mr-2" [style.background-color]="participant.envelope_choice"></div>
@@ -380,9 +380,9 @@
             </div>
           </div>
 
-          <!-- Votos Detalhados -->
+          <!-- Cartas Detalhados -->
           <div class="bg-white rounded-lg border border-gray-200 p-4">
-            <h4 class="text-lg font-semibold text-gray-800 mb-4">🗳️ Votos Detalhados</h4>
+            <h4 class="text-lg font-semibold text-gray-800 mb-4">🗳️ Cartas Detalhadas</h4>
             <div class="space-y-4">
               <div *ngFor="let participant of currentResults()!.participants_results" class="border-l-4 border-blue-200 pl-4">
                 <h5 class="font-medium text-gray-800 mb-2">{{ participant.name }}</h5>

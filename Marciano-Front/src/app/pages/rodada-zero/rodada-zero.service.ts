@@ -121,7 +121,7 @@ export class RodadaZeroApiService implements OnDestroy {
         return { ok: false, error: 'ID do participante inválido' };
       }
 
-      console.log('Enviando voto:', {
+      console.log('Enviando carta:', {
         room_code: roomCode,
         from_participant: participantIdNum,
         to_participant: participantIdNum,
@@ -145,7 +145,7 @@ export class RodadaZeroApiService implements OnDestroy {
       this._socketEvents$.next({ type: 'vote:progress', progress: 1 });
       return { ok: true, data };
     } catch (e: any) {
-      console.error('Erro ao enviar voto:', e);
+      console.error('Erro ao enviar carta:', e);
       return { ok: false, error: e?.message ?? 'sendSelfVote failed' };
     }
   }

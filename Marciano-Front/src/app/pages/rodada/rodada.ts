@@ -78,18 +78,18 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
 
   // Mão do usuário (cartas fixas do frontend)
   hand: WritableSignal<Carta[]> = signal<Carta[]>([
-    { id: 'lar-1', cor: 'Laranja',  texto: 'Tem pensamento estratégico e visão do todo', planeta: 'Marte' },
-    { id: 'lar-2', cor: 'Laranja',  texto: 'É bom em planejar e organizar', planeta: 'Marte' },
-    { id: 'ver-1', cor: 'Verde',    texto: 'Preserva a harmonia no ambiente de trabalho', planeta: 'Vênus' },
-    { id: 'ver-2', cor: 'Verde',    texto: 'Dá grande atenção ao bem estar da pessoa', planeta: 'Vênus' },
-    { id: 'ama-1', cor: 'Amarelo',  texto: 'É ágil, flexível e aberto a mudanças', planeta: 'Mercúrio' },
-    { id: 'ama-2', cor: 'Amarelo',  texto: 'Traz as novas ideias e ajuda a empresa a inovar', planeta: 'Mercúrio' },
-    { id: 'az-1',  cor: 'Azul',     texto: 'Ajuda a empresa e as equipes a manter o foco', planeta: 'Saturno' },
-    { id: 'az-2',  cor: 'Azul',     texto: 'Alinha os temas com profundidade e senso crítico', planeta: 'Saturno' },
-    { id: 'vermelho-1', cor: 'Vermelho', texto: 'Toma a iniciativa e faz acontecer', planeta: 'Júpiter' },
-    { id: 'vermelho-2', cor: 'Vermelho', texto: 'É prático e focado na ação e nos resultados', planeta: 'Júpiter' },
-    { id: 'roxo-1', cor: 'Roxo',    texto: 'Avalia o passado para melhorar as suas práticas', planeta: 'Urano' },
-    { id: 'roxo-2', cor: 'Roxo',    texto: 'Acompanha e monitora ações e resultados', planeta: 'Urano' },
+    { id: 'lar-1', cor: 'Laranja',  texto: 'Tem pensamento estratégico e visão do todo'},
+    { id: 'lar-2', cor: 'Laranja',  texto: 'É bom em planejar e organizar'},
+    { id: 'ver-1', cor: 'Verde',    texto: 'Preserva a harmonia no ambiente de trabalho'},
+    { id: 'ver-2', cor: 'Verde',    texto: 'Dá grande atenção ao bem estar da pessoa'},
+    { id: 'ama-1', cor: 'Amarelo',  texto: 'É ágil, flexível e aberto a mudanças'},
+    { id: 'ama-2', cor: 'Amarelo',  texto: 'Traz as novas ideias e ajuda a empresa a inovar'},
+    { id: 'az-1',  cor: 'Azul',     texto: 'Ajuda a empresa e as equipes a manter o foco'},
+    { id: 'az-2',  cor: 'Azul',     texto: 'Alinha os temas com profundidade e senso crítico'},
+    { id: 'vermelho-1', cor: 'Vermelho', texto: 'Toma a iniciativa e faz acontecer'},
+    { id: 'vermelho-2', cor: 'Vermelho', texto: 'É prático e focado na ação e nos resultados'},
+    { id: 'roxo-1', cor: 'Roxo',    texto: 'Avalia o passado para melhorar as suas práticas'},
+    { id: 'roxo-2', cor: 'Roxo',    texto: 'Acompanha e monitora ações e resultados'},
   ]);
 
   // Participante atual
@@ -241,7 +241,7 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
        </div>`;
 
     const confirm = await Swal.fire({
-      title: 'Confirmar voto?',
+      title: 'Confirmar carta?',
       html: resumoHtml,
       icon: 'question',
       showCancelButton: true,
@@ -252,7 +252,7 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
 
     if (!confirm.isConfirmed) return;
 
-    // --- API: Enviar voto para o servidor ---
+    // --- API: Enviar carta para o servidor ---
     try {
       this.isSubmitting.set(true);
       const currentParticipantId = this._currentParticipant();
@@ -284,7 +284,7 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
 
         // Mostrar SweetAlert que será fechado automaticamente quando o status mudar
         Swal.fire({
-          title: 'Voto registrado',
+          title: 'Carta registrada',
           html: 'Aguarde os demais participantes.<br>Esta janela fechará automaticamente quando a próxima rodada começar.',
           icon: 'success',
           allowOutsideClick: false,
@@ -294,7 +294,7 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
           timer: undefined, // Sem timer automático
         });
       } else {
-        this.toastError(`Erro ao registrar voto: ${result.error}`);
+        this.toastError(`Erro ao registrar carta: ${result.error}`);
       }
     } catch (error) {
       this.toastInfo('Não foi possível registrar no servidor (offline?). Sua seleção será mantida localmente.');
@@ -344,7 +344,7 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
     const status = this._roomStatus();
     if (!status) return 0;
     
-    // Só mostrar progresso se estiver em uma rodada de votação (rodada_1, rodada_2, etc.)
+    // Só mostrar progresso se estiver em uma rodada de rodada (rodada_1, rodada_2, etc.)
     if (!status.status.startsWith('rodada_') || status.status === 'rodada_0') return 0;
     
     const progress = status.round_progress;
@@ -385,16 +385,16 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
     const statusMap: { [key: string]: string } = {
       'lobby': '🔄 Lobby',
       'rodada_0': '🎯 Rodada 0 - Autoavaliação',
-      'rodada_1': '🎯 Rodada 1 - Votação',
-      'rodada_2': '🎯 Rodada 2 - Votação',
-      'rodada_3': '🎯 Rodada 3 - Votação',
-      'rodada_4': '🎯 Rodada 4 - Votação',
-      'rodada_5': '🎯 Rodada 5 - Votação',
-      'rodada_6': '🎯 Rodada 6 - Votação',
-      'rodada_7': '🎯 Rodada 7 - Votação',
-      'rodada_8': '🎯 Rodada 8 - Votação',
-      'rodada_9': '🎯 Rodada 9 - Votação',
-      'rodada_10': '🎯 Rodada 10 - Votação',
+      'rodada_1': '🎯 Rodada 1',
+      'rodada_2': '🎯 Rodada 2',
+      'rodada_3': '🎯 Rodada 3',
+      'rodada_4': '🎯 Rodada 4',
+      'rodada_5': '🎯 Rodada 5',
+      'rodada_6': '🎯 Rodada 6',
+      'rodada_7': '🎯 Rodada 7',
+      'rodada_8': '🎯 Rodada 8',
+      'rodada_9': '🎯 Rodada 9',
+      'rodada_10': '🎯 Rodada 10',
       'finalizado': '🏁 Finalizado'
     };
     
@@ -404,7 +404,7 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
       if (rodadaNum === '0') {
         return '🎯 Rodada 0 - Autoavaliação';
       } else {
-        return `🎯 Rodada ${rodadaNum} - Votação`;
+        return `🎯 Rodada ${rodadaNum}`;
       }
     }
     
@@ -535,8 +535,8 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   private handleVoteProgress(progress: number): void {
-    // Atualizar progresso da votação
-    console.log('Progresso da votação:', progress);
+    // Atualizar progresso da rodada
+    console.log('Progresso da rodada:', progress);
   }
 
   private handleRoundFinished(): void {

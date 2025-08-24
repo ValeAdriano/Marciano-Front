@@ -299,7 +299,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     if (status === 'finalizado') return '🏁 Finalizado';
     if (status.startsWith('rodada_')) {
       const roundNum = parseInt(status.replace('rodada_', ''), 10);
-      return roundNum === 0 ? '🎯 Rodada 0 - Autoavaliação' : `🎯 Rodada ${roundNum} - Votação`;
+      return roundNum === 0 ? '🎯 Rodada 0 - Autoavaliação' : `🎯 Rodada ${roundNum}`;
     }
     return status;
   }
@@ -337,7 +337,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
         <p>Esta ação é <strong>IRREVERSÍVEL</strong>!</p>
         <p>A sala <strong>${roomCode}</strong> será deletada permanentemente junto com:</p>
         <ul style="text-align: left; margin-top: 1rem;">
-          <li>• Todos os votos</li>
+          <li>• Todos as cartas</li>
           <li>• Todos os participantes</li>
           <li>• Todo o histórico</li>
           <li>• Todos os dados relacionados</li>
@@ -389,7 +389,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
   resetRoom(roomCode: string): void {
     Swal.fire({
       title: 'Resetar Sala?',
-      text: 'Esta ação irá resetar a sala para o estado inicial, limpando todos os votos e resetando as rodadas.',
+      text: 'Esta ação irá resetar a sala para o estado inicial, limpando todas as cartas e resetando as rodadas.',
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: 'Sim, Resetar',
@@ -428,8 +428,8 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
 
   clearAllVotes(roomCode: string): void {
     Swal.fire({
-      title: 'Limpar Todos os Votos?',
-      text: 'Esta ação irá remover todos os votos da sala, mas manterá os participantes e o progresso das rodadas.',
+      title: 'Limpar Todas as Cartas?',
+      text: 'Esta ação irá remover todas as cartas da sala, mas manterá os participantes e o progresso das rodadas.',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Sim, Limpar',
@@ -445,18 +445,18 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
               this.loadRoomStatus(roomCode);
               Swal.fire({
                 icon: 'success',
-                title: 'Votos Limpos!',
-                text: 'Todos os votos da sala foram removidos.',
+                title: 'Cartas Limpos!',
+                text: 'Todos os cartas da sala foram removidos.',
                 confirmButtonText: 'OK',
                 confirmButtonColor: '#28a745'
               });
             },
             error: (error: any) => {
-              console.error('Erro ao limpar votos:', error);
+              console.error('Erro ao limpar cartas:', error);
               Swal.fire({
                 icon: 'error',
-                title: 'Erro ao Limpar Votos',
-                text: 'Não foi possível limpar os votos da sala.',
+                title: 'Erro ao Limpar Cartas',
+                text: 'Não foi possível limpar as cartas da sala.',
                 confirmButtonText: 'OK',
                 confirmButtonColor: '#d33'
               });
@@ -588,7 +588,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
             html: `
               <div style="text-align: left;">
                 <p><strong>Participantes:</strong> ${stats.participants_count || 0}</p>
-                <p><strong>Votos totais:</strong> ${stats.total_votes || 0}</p>
+                <p><strong>Cartas totais:</strong> ${stats.total_votes || 0}</p>
                 <p><strong>Rodada atual:</strong> ${stats.current_round || 0}/${stats.max_rounds || 0}</p>
                 <p><strong>Status:</strong> ${this.getStatusDisplay(stats.status)}</p>
                 <p><strong>Criada em:</strong> ${new Date(stats.created_at).toLocaleString()}</p>
@@ -627,7 +627,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
             🏁 Finalizar Sala Completamente
           </button>
           <button id="clear-votes" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded font-medium">
-            🗳️ Limpar Todos os Votos
+            🗳️ Limpar Todas as Cartas
           </button>
           <button id="export-csv" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded font-medium">
             📄 Exportar CSV
@@ -895,7 +895,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       data: {
         labels: aggregated.map(r => this.getPlanetName(r.color)),
         datasets: [{
-          label: 'Total de Votos',
+          label: 'Total de Cartas ',
           data: aggregated.map(r => r.totalCount),
           backgroundColor: ['#8B5CF6', '#EAB308', '#22C55E', '#EF4444', '#F97316', '#3B82F6'],
           borderColor: ['#7C3AED', '#CA8A04', '#16A34A', '#DC2626', '#EA580C', '#2563EB'],
@@ -908,7 +908,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
         plugins: {
           title: {
             display: true,
-            text: `Resumo de Votos por Planeta - ${results.room_title}`,
+            text: `Resumo de Cartas por Planeta - ${results.room_title}`,
             font: { size: 16, weight: 'bold' }
           },
           legend: { display: false }
@@ -1120,7 +1120,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     let y = startY;
     pdf.setFontSize(18);
     pdf.setTextColor(primary[0], primary[1], primary[2]);
-    pdf.text('RESUMO DE VOTOS POR PLANETA', 20, y);
+    pdf.text('RESUMO DE CARTAS POR PLANETA', 20, y);
     y += 15;
 
     // Caixa de fundo para o resumo
@@ -1138,7 +1138,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       pdf.text(`${this.getPlanetName(c.color)}:`, 25, y);
       pdf.setFontSize(14);
       pdf.setTextColor(accent[0], accent[1], accent[2]);
-      pdf.text(`${c.totalCount} votos`, 120, y);
+      pdf.text(`${c.totalCount} cartas`, 120, y);
       y += 8;
     });
   }
@@ -1154,7 +1154,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     let y = startY;
     pdf.setFontSize(18);
     pdf.setTextColor(primary[0], primary[1], primary[2]);
-    pdf.text('RESUMO DE VOTOS POR PLANETA', 20, y);
+    pdf.text('RESUMO DE CARTAS POR PLANETA', 20, y);
     y += 15;
 
     const aggregated = this.aggregateResultsByColor(results);
@@ -1165,7 +1165,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       pdf.text(`${this.getPlanetName(c.color)}:`, 25, y);
       pdf.setFontSize(14);
       pdf.setTextColor(accent[0], accent[1], accent[2]);
-      pdf.text(`${c.totalCount} votos`, 120, y);
+      pdf.text(`${c.totalCount} cartas`, 120, y);
       y += 8;
     });
   }
@@ -1208,16 +1208,16 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
       const envelopeColor = this.getColorNameFromHex(p.envelope_choice);
       pdf.text(`Planeta Escolhido: ${this.getPlanetName(envelopeColor)}`, 25, y);
-      pdf.text(`Total de Votos: ${p.total_votes}`, 25, y + 6);
+      pdf.text(`Total de Cartas: ${p.total_votes}`, 25, y + 6);
       y += 15;
 
       if (p.detailed_votes.length > 0) {
         pdf.setFontSize(11);
         pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
-        pdf.text('Votos Recebidos:', 25, y); 
+        pdf.text('Cartas Recebidas:', 25, y); 
         y += 6;
 
-        p.detailed_votes.slice(0, 3).forEach((v) => { // Mostra apenas 3 votos por participante para não ocupar muito espaço
+        p.detailed_votes.slice(0, 3).forEach((v) => { // Mostra apenas 3 cartas por participante para não ocupar muito espaço
           if (y > 250) { pdf.addPage(); y = 20; }
           pdf.setFontSize(10);
           pdf.text(`- ${this.cleanText(v.from_name)} -> ${this.getPlanetName(v.card_color)}`, 30, y); 
@@ -1232,7 +1232,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
         if (p.detailed_votes.length > 3) {
           pdf.setFontSize(10);
           pdf.setTextColor(accent[0], accent[1], accent[2]);
-          pdf.text(`... e mais ${p.detailed_votes.length - 3} votos`, 30, y);
+          pdf.text(`... e mais ${p.detailed_votes.length - 3} cartas`, 30, y);
           y += 5;
         }
       }
@@ -1271,15 +1271,15 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     pdf.setFontSize(12);
     pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
     pdf.text(`Total de Participantes: ${results.total_participants} pessoas`, 20, 65);
-    pdf.text(`Total de Votos: ${totalVotes} votos`, 20, 72);
+    pdf.text(`Total de Cartas: ${totalVotes} cartas`, 20, 72);
 
     const mostVoted = this.aggregateResultsByColor(results)[0];
     if (mostVoted) {
       pdf.setTextColor(accent[0], accent[1], accent[2]);
-      pdf.text(`Planeta Mais Votado: ${mostVoted.color} (${mostVoted.totalCount} votos)`, 110, 65);
+      pdf.text(`Planeta Mais Votado: ${mostVoted.color} (${mostVoted.totalCount} cartas)`, 110, 65);
     }
 
-    // Caixa com distribuição de votos
+    // Caixa com distribuição de cartas
     pdf.setFillColor(245, 245, 245); // Cinza claro
     pdf.rect(15, 90, 180, 120, 'F');
     pdf.setDrawColor(primary[0], primary[1], primary[2]);
@@ -1287,7 +1287,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
 
     pdf.setFontSize(16);
     pdf.setTextColor(primary[0], primary[1], primary[2]);
-    pdf.text('DISTRIBUICAO DE VOTOS POR PLANETA', 20, 105);
+    pdf.text('DISTRIBUICAO DE CARTAS POR PLANETA', 20, 105);
 
     let y = 125;
     const aggregated = this.aggregateResultsByColor(results);
@@ -1303,7 +1303,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
       pdf.text(`${this.getPlanetName(c.color)}:`, 25, y + 8);
       pdf.setTextColor(accent[0], accent[1], accent[2]);
-      pdf.text(`${c.totalCount} votos (${pct}%)`, 80, y + 8);
+      pdf.text(`${c.totalCount} cartas (${pct}%)`, 80, y + 8);
       y += 18;
     });
 

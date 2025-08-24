@@ -62,18 +62,18 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
 
   // Mão do usuário
   hand: WritableSignal<Carta[]> = signal<Carta[]>([
-    { id: 'lar-1', cor: 'Laranja',  texto: 'Tem pensamento estratégico e visão do todo', planeta: 'Marte' },
-    { id: 'lar-2', cor: 'Laranja',  texto: 'É bom em planejar e organizar', planeta: 'Marte' },
-    { id: 'ver-1', cor: 'Verde',    texto: 'Preserva a harmonia no ambiente de trabalho', planeta: 'Vênus' },
-    { id: 'ver-2', cor: 'Verde',    texto: 'Dá grande atenção ao bem estar da pessoa', planeta: 'Vênus' },
-    { id: 'ama-1', cor: 'Amarelo',  texto: 'É ágil, flexível e aberto a mudanças', planeta: 'Mercúrio' },
-    { id: 'ama-2', cor: 'Amarelo',  texto: 'Traz as novas ideias e ajuda a empresa a inovar', planeta: 'Mercúrio' },
-    { id: 'az-1',  cor: 'Azul',     texto: 'Ajuda a empresa e as equipes a manter o foco', planeta: 'Saturno' },
-    { id: 'az-2',  cor: 'Azul',     texto: 'Alinha os temas com profundidade e senso crítico', planeta: 'Saturno' },
-    { id: 'vermelho-1', cor: 'Vermelho', texto: 'Toma a iniciativa e faz acontecer', planeta: 'Júpiter' },
-    { id: 'vermelho-2', cor: 'Vermelho', texto: 'É prático e focado na ação e nos resultados', planeta: 'Júpiter' },
-    { id: 'roxo-1', cor: 'Roxo',    texto: 'Avalia o passado para melhorar as suas práticas', planeta: 'Urano' },
-    { id: 'roxo-2', cor: 'Roxo',    texto: 'Acompanha e monitora ações e resultados', planeta: 'Urano' },
+    { id: 'lar-1', cor: 'Laranja',  texto: 'Tem pensamento estratégico e visão do todo'},
+    { id: 'lar-2', cor: 'Laranja',  texto: 'É bom em planejar e organizar'},
+    { id: 'ver-1', cor: 'Verde',    texto: 'Preserva a harmonia no ambiente de trabalho'},
+    { id: 'ver-2', cor: 'Verde',    texto: 'Dá grande atenção ao bem estar da pessoa'},
+    { id: 'ama-1', cor: 'Amarelo',  texto: 'É ágil, flexível e aberto a mudanças'},
+    { id: 'ama-2', cor: 'Amarelo',  texto: 'Traz as novas ideias e ajuda a empresa a inovar'},
+    { id: 'az-1',  cor: 'Azul',     texto: 'Ajuda a empresa e as equipes a manter o foco'},
+    { id: 'az-2',  cor: 'Azul',     texto: 'Alinha os temas com profundidade e senso crítico'},
+    { id: 'vermelho-1', cor: 'Vermelho', texto: 'Toma a iniciativa e faz acontecer'},
+    { id: 'vermelho-2', cor: 'Vermelho', texto: 'É prático e focado na ação e nos resultados'},
+    { id: 'roxo-1', cor: 'Roxo',    texto: 'Avalia o passado para melhorar as suas práticas'},
+    { id: 'roxo-2', cor: 'Roxo',    texto: 'Acompanha e monitora ações e resultados'},
   ]);
 
   /** Associações por alvo (máx. 1 carta) */
@@ -265,8 +265,8 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   private handleVoteProgress(progress: number): void {
-    // Atualizar progresso da votação
-    console.log('Progresso da votação:', progress);
+    // Atualizar progresso da rodada
+    console.log('Progresso da rodada:', progress);
   }
 
   private handleRoundFinished(): void {
@@ -438,7 +438,7 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
           didOpen: () => Swal.showLoading(),
         });
       } else {
-        this.toastError(`Erro ao registrar voto: ${result.error}`);
+        this.toastError(`Erro ao registrar carta: ${result.error}`);
       }
     } catch (error) {
       this.toastInfo('Não foi possível registrar no servidor (offline?). Sua seleção será mantida localmente.');
@@ -498,8 +498,8 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
     const statusMap: { [key: string]: string } = {
       'lobby': '🔄 Lobby',
       'rodada_0': '🎯 Rodada 0 - Autoavaliação',
-      'rodada_1': '🎯 Rodada 1 - Votação',
-      'rodada_2': '🎯 Rodada 2 - Votação',
+      'rodada_1': '🎯 Rodada 1',
+      'rodada_2': '🎯 Rodada 2',
       'finalizado': '🏁 Finalizado'
     };
     return statusMap[status] || status;

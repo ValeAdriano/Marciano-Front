@@ -158,7 +158,7 @@ export class ResultadosService {
     );
   }
 
-  /** Processar votos detalhados para calcular contagem por cor */
+  /** Processar cartas detalhados para calcular contagem por cor */
   private processDetailedVotes(detailedVotes: any[]): Record<Cor, number> {
     const result: Record<Cor, number> = this.getEmptyColorData();
     

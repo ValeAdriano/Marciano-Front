@@ -28,5 +28,5 @@ import { HeaderComponent } from './@shared/layout/header/header.component';
   `]
 })
 export class AppComponent {
-  title = 'Marciano Front';
+  title = 'Qualidades Anímicas';
 } 

@@ -113,7 +113,7 @@ export class ResultadosComponent implements OnInit, AfterViewInit, OnDestroy {
     // Verifica se há dados válidos para renderizar
     const totalVotes = Object.values(data).reduce((sum, count) => sum + count, 0);
     if (totalVotes === 0) {
-      console.log('⚠️ Sem dados para renderizar (total de votos: 0)');
+      console.log('⚠️ Sem dados para renderizar (total de cartas: 0)');
       return;
     }
 
@@ -232,7 +232,7 @@ export class ResultadosComponent implements OnInit, AfterViewInit, OnDestroy {
       if (totalVotes > 0) {
         this.renderChart(type, data);
       } else {
-        console.log('⚠️ Sem dados para renderizar (total de votos: 0)');
+        console.log('⚠️ Sem dados para renderizar (total de cartas: 0)');
       }
     } else {
       console.log('⏳ Condições não atendidas para renderização:', {
@@ -281,7 +281,7 @@ export class ResultadosComponent implements OnInit, AfterViewInit, OnDestroy {
       const v = votesByColor[c] || 0;
       if (v > 0) parts.push(`${this.planetByColor[c]}: ${v}`);
     }
-    return parts.length ? `Distribuição por planeta — ${parts.join(', ')}` : 'Sem votos';
+    return parts.length ? `Distribuição por planeta — ${parts.join(', ')}` : 'Sem cartas';
   }
 
   // label de qualidade → planeta
@@ -319,7 +319,7 @@ export class ResultadosComponent implements OnInit, AfterViewInit, OnDestroy {
       data: {
         labels: planetLabels,
         datasets: [{
-          label: type === 'bar' ? 'Votos por planeta' : 'Proporção por planeta',
+          label: type === 'bar' ? 'Cartas por planeta' : 'Proporção por planeta',
           data: values,
           backgroundColor: colors,
           borderWidth: 0,
@@ -343,7 +343,7 @@ export class ResultadosComponent implements OnInit, AfterViewInit, OnDestroy {
                   grid: { color: 'rgba(0,0,0,0.06)' },
                   title: { 
                     display: true, 
-                    text: 'Votos',
+                    text: 'Cartas',
                     color: '#4b4b4bff', // mais escuro
                     font: { size: 18, weight: 'bold' }, // maior e viva
                   },
@@ -367,7 +367,7 @@ export class ResultadosComponent implements OnInit, AfterViewInit, OnDestroy {
                 tooltip: {
                   callbacks: {
                     title: (items) => items[0]?.label ?? '',
-                    label: (ctx) => ` ${ctx.formattedValue} voto(s)`,
+                    label: (ctx) => ` ${ctx.formattedValue} carta(s)`,
                   },
                 },
               },

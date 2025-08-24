@@ -67,7 +67,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
     console.log('✅ Cleanup automático via service');
   }
 
-  // Calcula a porcentagem de progresso da votação (máximo 100%)
+  // Calcula a porcentagem de progresso da rodada (máximo 100%)
   getProgressPercentage(): number {
     const status = this.roomStatus();
     if (!status) return 0;
@@ -89,7 +89,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
     const roundedPercentage = Math.round(percentage);
     
     // Log adicional para debug
-    console.log('📊 Progresso da votação:', {
+    console.log('📊 Progresso:', {
       currentVotes,
       expectedVotes,
       percentage,
@@ -106,16 +106,16 @@ export class LobbyComponent implements OnInit, OnDestroy {
     const statusMap: { [key: string]: string } = {
       'lobby': '🔄 Lobby - Aguardando início',
       'rodada_0': '🎯 Rodada 0 - Autoavaliação',
-      'rodada_1': '🎯 Rodada 1 - Votação',
-      'rodada_2': '🎯 Rodada 2 - Votação',
-      'rodada_3': '🎯 Rodada 3 - Votação',
-      'rodada_4': '🎯 Rodada 4 - Votação',
-      'rodada_5': '🎯 Rodada 5 - Votação',
-      'rodada_6': '🎯 Rodada 6 - Votação',
-      'rodada_7': '🎯 Rodada 7 - Votação',
-      'rodada_8': '🎯 Rodada 8 - Votação',
-      'rodada_9': '🎯 Rodada 9 - Votação',
-      'rodada_10': '🎯 Rodada 10 - Votação',
+      'rodada_1': '🎯 Rodada 1',
+      'rodada_2': '🎯 Rodada 2',
+      'rodada_3': '🎯 Rodada 3',
+      'rodada_4': '🎯 Rodada 4',
+      'rodada_5': '🎯 Rodada 5',
+      'rodada_6': '🎯 Rodada 6',
+      'rodada_7': '🎯 Rodada 7',
+      'rodada_8': '🎯 Rodada 8',
+      'rodada_9': '🎯 Rodada 9',
+      'rodada_10': '🎯 Rodada 10',
       'finalizado': '🏁 Jogo Finalizado'
     };
     
@@ -125,7 +125,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
       if (rodadaNum === '0') {
         return '🎯 Rodada 0 - Autoavaliação';
       } else {
-        return `🎯 Rodada ${rodadaNum} - Votação`;
+        return `🎯 Rodada ${rodadaNum}`;
       }
     }
     
@@ -232,7 +232,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
     Swal.fire({
       title: 'Iniciar Rodada?',
-      text: 'Tem certeza que deseja iniciar a votação?',
+      text: 'Tem certeza que deseja iniciar a rodada?',
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: 'Sim, Iniciar',
