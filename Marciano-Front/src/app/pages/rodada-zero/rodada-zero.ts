@@ -198,15 +198,14 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
             console.log('📊 Processando vote:progress:', event.progress);
             this.handleVoteProgress(event.progress);
             break;
+          case 'round:started':
+            console.log('🎯 Processando round:started:', event.totalSeconds);
+            // Iniciar timer quando a rodada for iniciada
+            this.rodada.onRoundStarted(event.totalSeconds);
+            break;
           case 'round:finished':
             console.log('🏁 Processando round:finished');
             this.handleRoundFinished();
-            break;
-          case 'round:started':
-            console.log('🎯 Processando round:started - nova rodada iniciada');
-            // Fechar todos os SweetAlerts quando uma nova rodada começar
-            this.forceCloseAllSweetAlerts();
-            this.closeWaitingSweetAlerts();
             break;
           case 'results:ready':
             console.log('🎉 Processando results:ready');
@@ -220,9 +219,6 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
         }
       })
     );
-
-    // Configurar polling para verificar mudanças de status (fallback)
-    this.setupStatusPolling();
   }
 
   private async loadRoomStatus(): Promise<void> {
@@ -251,43 +247,42 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   private handleStatusChange(status: RoomStatus): void {
+    console.log('🔄 handleStatusChange chamado com status:', status);
     const currentStatus = status.status;
-    const previousStatus = this._roomStatus()?.status;
-    
-    console.log(`🔄 Mudança de status detectada: ${previousStatus} → ${currentStatus}`);
     
     // CORREÇÃO CRÍTICA: Fechar TODOS os modais de SweetAlert de forma mais robusta
     this.forceCloseAllSweetAlerts();
     
-    // Fechar especificamente os SweetAlerts de espera
-    this.closeWaitingSweetAlerts();
+    // VERIFICAÇÃO CRÍTICA: Se o status for "finalizado", navegar direto para resultados
+    if (currentStatus === 'finalizado') {
+      console.log('🏁 Status finalizado detectado, navegando para resultados...');
+      this.navigateToResults();
+      return; // Sair do método para não executar o resto da lógica
+    }
     
     // Limpar o lastvote da rodada anterior quando mudar de status
     const code = this.roomCode();
+    const previousStatus = this._roomStatus()?.status;
+    console.log('📝 Status anterior:', previousStatus, 'Status atual:', currentStatus);
+    
     if (code && previousStatus && previousStatus !== currentStatus) {
-      console.log(`🧹 Limpando estado da rodada anterior: ${previousStatus}`);
-      
+      console.log('🔄 Status mudou, limpando lastvote da rodada anterior');
       // Limpar lastvote da rodada anterior
       const lastVoteKey = `lastvote_${code}`;
       localStorage.removeItem(lastVoteKey);
       
       // Também limpar no VoteStateService para compatibilidade
       this.voteState.clearVoteState(code, previousStatus);
-      
-      // Reabilitar votação se mudou para uma nova rodada
-      if (currentStatus !== 'rodada_0' || previousStatus === 'rodada_0') {
-        this.enableVoting();
-      }
     }
     
     // Aguardar um pouco para garantir que o SweetAlert foi fechado
     setTimeout(() => {
-      // Usar o NavigationService para navegar para a tela correta
+      // Usar o NavigationService para verificar se está na tela correta
       if (!this.navigation.isOnCorrectScreen(status)) {
-        console.log(`🧭 Navegando para tela correta: ${currentStatus}`);
+        console.log('🧭 Navegando para tela correta...');
         this.navigation.navigateToCorrectScreen(status);
       } else {
-        console.log(`✅ Já está na tela correta: ${currentStatus}`);
+        console.log('✅ Já está na tela correta');
       }
     }, 100);
   }
@@ -298,90 +293,37 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
    */
   private forceCloseAllSweetAlerts(): void {
     try {
-      console.log('🔒 Tentando fechar todos os SweetAlerts...');
-      
       // Método 1: Fechar via Swal.close() (método oficial)
       Swal.close();
       
       // Método 2: Fechar via DOM (fallback para casos onde Swal.close() falha)
       const sweetAlertElements = document.querySelectorAll('.swal2-container');
-      if (sweetAlertElements.length > 0) {
-        console.log(`🔍 Encontrados ${sweetAlertElements.length} elementos SweetAlert no DOM`);
-        sweetAlertElements.forEach((element, index) => {
-          if (element instanceof HTMLElement) {
-            console.log(`🗑️ Removendo SweetAlert ${index + 1}`);
-            element.style.display = 'none';
-            element.remove();
-          }
-        });
-      }
+      sweetAlertElements.forEach(element => {
+        if (element instanceof HTMLElement) {
+          element.style.display = 'none';
+          element.remove();
+        }
+      });
       
       // Método 3: Fechar via backdrop (fallback para backdrops órfãos)
       const backdrops = document.querySelectorAll('.swal2-backdrop-show');
-      if (backdrops.length > 0) {
-        console.log(`🔍 Encontrados ${backdrops.length} backdrops no DOM`);
-        backdrops.forEach((backdrop, index) => {
-          if (backdrop instanceof HTMLElement) {
-            console.log(`🗑️ Removendo backdrop ${index + 1}`);
-            backdrop.style.display = 'none';
-            backdrop.remove();
-          }
-        });
-      }
+      backdrops.forEach(backdrop => {
+        if (backdrop instanceof HTMLElement) {
+          backdrop.style.display = 'none';
+          backdrop.remove();
+        }
+      });
       
       // Método 4: Remover classes de body (limpeza final)
-      const bodyClasses = document.body.classList;
-      if (bodyClasses.contains('swal2-shown') || bodyClasses.contains('swal2-height-auto')) {
-        console.log('🧹 Removendo classes SweetAlert do body');
-        bodyClasses.remove('swal2-shown', 'swal2-height-auto');
-      }
+      document.body.classList.remove('swal2-shown', 'swal2-height-auto');
       
-      // Método 5: Verificar se ainda existem elementos órfãos
-      setTimeout(() => {
-        const remainingAlerts = document.querySelectorAll('.swal2-container, .swal2-backdrop-show');
-        if (remainingAlerts.length > 0) {
-          console.log(`⚠️ Ainda existem ${remainingAlerts.length} elementos SweetAlert após limpeza`);
-          remainingAlerts.forEach(element => {
-            if (element instanceof HTMLElement) {
-              element.remove();
-            }
-          });
-        } else {
-          console.log('✅ Limpeza completa dos SweetAlerts realizada');
-        }
-      }, 50);
-      
+      console.log('✅ Todos os SweetAlerts foram fechados com sucesso');
     } catch (error) {
-      console.error('❌ Erro ao fechar SweetAlerts:', error);
+      console.warn('⚠️ Erro ao fechar SweetAlerts:', error);
     }
   }
 
-  /**
-   * Método específico para fechar SweetAlerts de espera quando há mudança de status
-   */
-  private closeWaitingSweetAlerts(): void {
-    try {
-      console.log('🎯 Fechando SweetAlerts de espera específicos...');
-      
-      // Fechar SweetAlerts com classes específicas
-      const waitingAlerts = document.querySelectorAll('.waiting-next-round-alert, .already-voted-alert, .round-finished-alert');
-      if (waitingAlerts.length > 0) {
-        console.log(`🔍 Encontrados ${waitingAlerts.length} SweetAlerts de espera`);
-        waitingAlerts.forEach((alert, index) => {
-          console.log(`🗑️ Fechando SweetAlert de espera ${index + 1}`);
-          if (alert instanceof HTMLElement) {
-            alert.remove();
-          }
-        });
-      }
-      
-      // Também fechar via Swal.close() para garantir
-      Swal.close();
-      
-    } catch (error) {
-      console.error('❌ Erro ao fechar SweetAlerts de espera:', error);
-    }
-  }
+
 
   private handleVoteProgress(progress: number): void {
     // Atualizar progresso da Rodada
@@ -389,11 +331,8 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   private handleRoundFinished(): void {
-    console.log('🏁 Rodada finalizada, fechando SweetAlerts e mostrando mensagem');
-    
     // CORREÇÃO: Fechar qualquer SweetAlert anterior de forma robusta
     this.forceCloseAllSweetAlerts();
-    this.closeWaitingSweetAlerts();
     
     // Rodada terminou, mostrar mensagem
     Swal.fire({
@@ -405,9 +344,6 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
       allowEnterKey: false,
       showConfirmButton: false,
       timer: 3000,
-      customClass: {
-        container: 'round-finished-alert'
-      }
     });
   }
 
@@ -426,44 +362,12 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
       showConfirmButton: false,
       timer: 2000,
     }).then(() => {
-      // Redirecionar para resultados com parâmetros corretos
-      const session = this.home.getSession();
-      if (session) {
-        this.router.navigate(['/resultados', session.roomCode, session.participantId]);
-      } else {
-        console.error('Sessão não encontrada para redirecionamento');
-        this.router.navigate(['/']);
-      }
+      // Usar o método centralizado para navegar para resultados
+      this.navigateToResults();
     });
   }
 
-  private setupStatusPolling(): void {
-    // Verificar status da sala a cada 5 segundos como fallback
-    const pollInterval = setInterval(async () => {
-      const code = this.roomCode();
-      if (!code) return;
-
-      try {
-        const result = await this.api.getRoomStatus(code);
-        if (result.ok) {
-          const currentStatus = this._roomStatus()?.status;
-          const newStatus = result.data.status;
-          
-          // Se o status mudou, atualizar e verificar redirecionamento
-          if (currentStatus !== newStatus) {
-            console.log(`🔄 Mudança de status detectada via polling: ${currentStatus} → ${newStatus}`);
-            this._roomStatus.set(result.data);
-            this.handleStatusChange(result.data);
-          }
-        }
-      } catch (error) {
-        console.warn('Erro no polling de status:', error);
-      }
-    }, 5000);
-
-    // Limpar o intervalo quando o componente for destruído
-    this.subscriptions.push(new Subscription(() => clearInterval(pollInterval)));
-  }
+  
 
   // Utils
   private ensureBucket(alvoId: string): Carta[] {
@@ -706,8 +610,6 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   private showAlreadyVotedMessage(): void {
-    console.log('📝 Mostrando mensagem de que já votou');
-    
     // Mostrar mensagem de que já votou
     Swal.fire({
       title: 'Você já enviou sua carta nesta rodada!',
@@ -718,9 +620,6 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
       allowEnterKey: false,
       showConfirmButton: false,
       timer: undefined, // Sem timer automático - será fechado pelo handleStatusChange
-      customClass: {
-        container: 'already-voted-alert'
-      }
     });
   }
 
@@ -754,22 +653,15 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
     const lastVoteKey = `lastvote_${code}`;
     const lastVote = localStorage.getItem(lastVoteKey);
     
-    console.log(`🔍 Verificando lastvote para sala ${code}: ${lastVote}`);
-    
-    // Se existe lastvote e é igual à rodada atual (rodada_0), mostrar SweetAlert
-    if (lastVote === 'rodada_0') {
-      console.log('📝 Usuário já votou na rodada 0, mostrando mensagem de espera');
+    // Se existe lastvote e é igual à rodada atual, mostrar SweetAlert
+    const currentStatus = this._roomStatus()?.status || 'rodada_0';
+    if (lastVote === currentStatus) {
       this.showWaitingForNextRoundMessage();
       this.disableVoting();
-    } else {
-      console.log('✅ Usuário ainda não votou na rodada 0, votação habilitada');
-      this.enableVoting();
     }
   }
 
   private showWaitingForNextRoundMessage(): void {
-    console.log('⏳ Mostrando mensagem de espera para próxima rodada');
-    
     Swal.fire({
       title: '⏳ Aguardando Próxima Rodada',
       text: 'Você já realizou sua autoavaliação nesta rodada. Aguarde o próximo passo.',
@@ -779,9 +671,6 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
       allowEnterKey: false,
       showConfirmButton: false,
       timer: undefined, // Sem timer automático - será fechado pelo handleStatusChange
-      customClass: {
-        container: 'waiting-next-round-alert'
-      }
     });
   }
 
@@ -790,16 +679,7 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
     this.hand.update(hand => hand.map(card => ({ ...card, disabled: true })));
   }
 
-  private enableVoting(): void {
-    // Reabilitar todas as cartas visualmente
-    this.hand.update(hand => hand.map(card => ({ ...card, disabled: false })));
-    
-    // Limpar seleção atual
-    this.selectedCardId.set(null);
-    this.draggingCardId.set(null);
-    
-    console.log('✅ Votação reabilitada');
-  }
+
 
   private navigateToResults(): void {
     const session = this.home.getSession();
