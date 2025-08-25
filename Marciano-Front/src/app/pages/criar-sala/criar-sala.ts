@@ -47,6 +47,9 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
   readonly loadingResults = signal<boolean>(false);
   private resultsChart: Chart | null = null;
 
+  // Cache opcional de charts por participante (evita recriar caso gere mais de uma vez)
+  private participantChartCache = new Map<number, string>();
+
   // Computed
   readonly displayName = computed(() => 'Usuário');
 
@@ -69,77 +72,46 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     if (this.resultsChart) this.resultsChart.destroy();
     if (this.updateTimer) clearInterval(this.updateTimer);
     this.socketService.disconnect();
+    this.participantChartCache.clear();
   }
 
   // -------------------- Socket e Atualizações em Tempo Real --------------------
 
   private setupSocketListeners(): void {
-    // Conectar ao socket
     this.socketService.connect();
 
-    // Listener para quando uma rodada é finalizada
     this.socketService.onRoundFinished$
       .pipe(takeUntil(this.destroy$))
       .subscribe(event => {
-        console.log('Rodada finalizada via socket:', event);
-        // Atualizar status da sala correspondente
-        if (event.round && event.round.roomId) {
-          // Buscar a sala pelo roomId e atualizar
-          this.updateRoomStatusByRoomId(event.round.roomId);
-        }
+        if (event.round && event.round.roomId) this.updateRoomStatusByRoomId(event.round.roomId);
       });
 
-    // Listener para quando uma rodada é iniciada
     this.socketService.onRoundStarted$
       .pipe(takeUntil(this.destroy$))
       .subscribe(event => {
-        console.log('Rodada iniciada via socket:', event);
-        // Atualizar status da sala correspondente
-        if (event.round && event.round.roomId) {
-          // Buscar a sala pelo roomId e atualizar
-          this.updateRoomStatusByRoomId(event.round.roomId);
-        }
+        if (event.round && event.round.roomId) this.updateRoomStatusByRoomId(event.round.roomId);
       });
 
-    // Listener para quando um participante entra/sai
     this.socketService.onParticipantJoined$
       .pipe(takeUntil(this.destroy$))
-      .subscribe(event => {
-        console.log('Participante entrou via socket:', event);
-        // Atualizar todas as salas ativas
-        this.updateActiveRooms();
-      });
+      .subscribe(() => this.updateActiveRooms());
 
     this.socketService.onParticipantLeft$
       .pipe(takeUntil(this.destroy$))
-      .subscribe(event => {
-        console.log('Participante saiu via socket:', event);
-        // Atualizar todas as salas ativas
-        this.updateActiveRooms();
-      });
+      .subscribe(() => this.updateActiveRooms());
 
-    // Listener para erros do socket
     this.socketService.onError$
       .pipe(takeUntil(this.destroy$))
-      .subscribe(error => {
-        console.error('Erro do socket:', error);
-        // Mostrar notificação de erro
-        this.showSocketError(error);
-      });
+      .subscribe(error => this.showSocketError(error));
   }
 
   private startAutoUpdate(): void {
-    // Atualizar status das salas ativas a cada 10 segundos
-    this.updateTimer = setInterval(() => {
-      this.updateActiveRooms();
-    }, 10000);
+    this.updateTimer = setInterval(() => this.updateActiveRooms(), 10000);
   }
 
   private updateActiveRooms(): void {
     const activeRooms = this.reports().filter(r => !this.isRoomFinished(r.code));
-    activeRooms.forEach(room => {
-      this.loadRoomStatus(room.code);
-    });
+    activeRooms.forEach(room => this.loadRoomStatus(room.code));
   }
 
   private showSocketError(error: string): void {
@@ -155,11 +127,8 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private updateRoomStatusByRoomId(roomId: string): void {
-    // Buscar a sala pelo roomId nos relatórios
     const room = this.reports().find(r => r.id.toString() === roomId);
-    if (room) {
-      this.loadRoomStatus(room.code);
-    }
+    if (room) this.loadRoomStatus(room.code);
   }
 
   // -------------------- Form / Código --------------------
@@ -302,12 +271,11 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
           const statuses = new Map(this.roomStatuses());
           statuses.set(roomCode, status);
           this.roomStatuses.set(statuses);
-          
-          // Registrar tempo da última atualização
+
           const updateTimes = new Map(this.lastUpdateTimes());
           updateTimes.set(roomCode, new Date());
           this.lastUpdateTimes.set(updateTimes);
-          
+
           this.loadingStatuses().delete(roomCode);
         },
         error: (error: any) => {
@@ -318,10 +286,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   refreshRoomStatus(roomCode: string): void {
-    // Força atualização do status da sala
     this.loadRoomStatus(roomCode);
-    
-    // Mostra notificação de atualização
     Swal.fire({
       icon: 'info',
       title: 'Atualizando Status',
@@ -444,8 +409,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     if (!status) return [];
 
     const rounds: Array<{ round: number; current: number; expected: number; percentage: number; status: string }> = [];
-    
-    // Rodada 0 (Autoavaliação)
+
     if (status.status === 'rodada_0' || status.current_round >= 0) {
       rounds.push({
         round: 0,
@@ -456,17 +420,16 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       });
     }
 
-    // Rodadas de votação (1, 2, 3...)
     for (let i = 1; i <= status.max_rounds; i++) {
       const isCurrentRound = status.current_round === i;
       const isCompleted = status.current_round > i;
-      
+
       if (isCurrentRound || isCompleted) {
         rounds.push({
           round: i,
           current: isCurrentRound ? (status.round_progress?.current_votes || 0) : (status.round_progress?.expected_votes || 0),
           expected: status.round_progress?.expected_votes || 0,
-          percentage: isCurrentRound 
+          percentage: isCurrentRound
             ? this.calculateRoundPercentage(status.round_progress?.current_votes || 0, status.round_progress?.expected_votes || 0)
             : 100,
           status: isCurrentRound ? 'ativa' : 'concluída'
@@ -508,19 +471,19 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
   getLastUpdateTime(roomCode: string): string {
     const lastUpdate = this.lastUpdateTimes().get(roomCode);
     if (!lastUpdate) return 'Nunca';
-    
+
     const now = new Date();
     const diffMs = now.getTime() - lastUpdate.getTime();
-    
+
     if (diffMs < 60000) return 'Agora mesmo';
     if (diffMs < 300000) return 'Há poucos minutos';
     if (diffMs < 600000) return 'Há 5 minutos';
     if (diffMs < 1800000) return 'Há 15 minutos';
     if (diffMs < 3600000) return 'Há 30 minutos';
-    
+
     const hours = Math.floor(diffMs / 3600000);
     if (hours < 24) return `Há ${hours} hora${hours > 1 ? 's' : ''}`;
-    
+
     const days = Math.floor(hours / 24);
     return `Há ${days} dia${days > 1 ? 's' : ''}`;
   }
@@ -1089,6 +1052,38 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       this.resultsChart.destroy();
       this.resultsChart = null;
     }
+    this.participantChartCache.clear();
+  }
+
+  // >>>>>>>>>>>>>>>>>>>>>>>>> INÍCIO: BLOCO AJUSTADO PARA GRÁFICO/RELATÓRIO
+
+  // Aguarda o gráfico estar totalmente pronto (render/resize)
+  private async ensureChartReady(): Promise<void> {
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    await new Promise(r => setTimeout(r, 60));
+    if (this.resultsChart) {
+      this.resultsChart.update('none');
+      await new Promise(r => setTimeout(r, 30));
+    }
+  }
+
+  // Aguarda um chart "offscreen" terminar de renderizar
+  private async ensureOffscreenChartReady(chart: Chart): Promise<void> {
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    chart.update('none');
+    await new Promise(r => setTimeout(r, 20));
+  }
+
+  // Ajusta altura do canvas conforme quantidade de barras
+  private sizeResultsCanvasFor(labelsCount: number): void {
+    if (!this.resultsChartCanvas?.nativeElement) return;
+    const base = 260;
+    const perBar = 34;
+    const padding = 40;
+    const target = Math.min(1800, Math.max(base, padding + labelsCount * perBar));
+    const canvas = this.resultsChartCanvas.nativeElement;
+    canvas.height = target;                 // altura real do canvas
+    canvas.style.height = `${target}px`;    // altura CSS para layout
   }
 
   private createResultsChart(): void {
@@ -1096,10 +1091,16 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     const ctx = this.resultsChartCanvas.nativeElement.getContext('2d');
     if (!ctx) return;
 
-    if (this.resultsChart) this.resultsChart.destroy();
+    if (this.resultsChart) {
+      this.resultsChart.destroy();
+      this.resultsChart = null;
+    }
 
     const results = this.currentResults()!;
     const aggregated = this.aggregateResultsByPlanet(results);
+
+    // altura dinâmica p/ gráficos grandes
+    this.sizeResultsCanvasFor(aggregated.length);
 
     this.resultsChart = new Chart(ctx, {
       type: 'bar',
@@ -1116,6 +1117,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        animation: { duration: 200 },
         plugins: {
           title: {
             display: true,
@@ -1131,28 +1133,93 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
-  private aggregateResultsByPlanet(results: RoomResults): Array<{ planet: string; totalCount: number }> {
-    const planetMap = new Map<string, number>();
-    const allPlanets = this.getAllPlanets();
-    allPlanets.forEach(p => planetMap.set(p, 0));
-    
-    results.participants_results.forEach(p => {
-      p.results_by_color.forEach(cr => {
-        // Mapear a cor para o nome do planeta
-        const planetName = this.getPlanetNameFromColor(cr.color);
-        if (planetName && planetMap.has(planetName)) {
-          planetMap.set(planetName, (planetMap.get(planetName) || 0) + cr.count);
-        }
-      });
-    });
-    
-    return Array.from(planetMap.entries())
-      .map(([planet, totalCount]) => ({ planet, totalCount }))
-      .sort((a, b) => b.totalCount - a.totalCount);
+  private async captureChartAsImage(): Promise<string | null> {
+    if (!this.resultsChart || !this.resultsChartCanvas) return null;
+    await this.ensureChartReady();
+    try {
+      const asBase64 = (this.resultsChart as any).toBase64Image?.() as string | undefined;
+      if (asBase64 && asBase64.startsWith('data:image')) return asBase64;
+    } catch { /* fallback abaixo */ }
+
+    try {
+      const canvas = this.resultsChartCanvas.nativeElement;
+      return canvas.toDataURL('image/png', 1.0);
+    } catch (e) {
+      console.error('Falha ao capturar canvas:', e);
+      return null;
+    }
   }
 
-  // -------------------- PDF de resultados (texto+gráfico) --------------------
+  // >>>>>>>>>>>>> NOVO: gera chart horizontal por participante (offscreen)
+  private async createParticipantChartImage(participant: any): Promise<string> {
+    const planets = this.getAllPlanets();
+    const data = planets.map(p => this.getParticipantPlanetVotes(participant, p));
+    const colors = planets.map(p => this.getColorFromPlanet(p));
 
+    // Canvas offscreen
+    const canvas = document.createElement('canvas');
+    // Tamanho bom para PDF (mantendo proporção)
+    canvas.width = 800;
+    canvas.height = 350;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return '';
+
+    const chart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: planets,
+        datasets: [{
+          label: 'Cartas',
+          data,
+          backgroundColor: colors,
+          borderColor: colors,
+          borderWidth: 2
+        }]
+      },
+      options: {
+        indexAxis: 'y' as const, // barras horizontais
+        responsive: false,
+        maintainAspectRatio: false,
+        animation: { duration: 0 },
+        plugins: {
+          title: {
+            display: true,
+            text: `Distribuição por Planeta — ${this.cleanText(participant.name || '')}`,
+            font: { size: 16, weight: 'bold' }
+          },
+          legend: { display: false }
+        },
+        scales: {
+          x: { beginAtZero: true, ticks: { stepSize: 1 } },
+          y: { ticks: { autoSkip: false } }
+        }
+      }
+    });
+
+    await this.ensureOffscreenChartReady(chart);
+    const dataUrl = canvas.toDataURL('image/png', 1.0);
+    chart.destroy();
+    canvas.remove();
+    return dataUrl;
+  }
+
+  // >>>>>>>>>>>>> NOVO: gera todos os charts por participante (com cache)
+  private async buildParticipantCharts(results: RoomResults): Promise<Map<number, string>> {
+    const map = new Map<number, string>();
+    for (let i = 0; i < results.participants_results.length; i++) {
+      if (this.participantChartCache.has(i)) {
+        map.set(i, this.participantChartCache.get(i)!);
+        continue;
+      }
+      const img = await this.createParticipantChartImage(results.participants_results[i]);
+      map.set(i, img);
+      this.participantChartCache.set(i, img);
+    }
+    return map;
+  }
+
+  // <<< PDF programático com gráfico em alta (fallback para "print" da modal)
   downloadResultsReport(): void {
     const results = this.currentResults();
     if (!results) {
@@ -1166,137 +1233,180 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
-    // Usar a função que captura a modal completa como PDF
-    this.downloadModalAsPdf();
-  }
+    Swal.fire({
+      title: 'Gerando Relatório...',
+      text: 'Preparando os gráficos e o PDF em alta qualidade.',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
 
-  private async captureChartAsImage(): Promise<string | null> {
-    if (!this.resultsChart || !this.resultsChartCanvas) {
-      console.log('Gráfico ou canvas não disponível para captura');
-      return null;
-    }
-    
-    try {
-      const canvas = this.resultsChartCanvas.nativeElement;
-      if (!canvas) {
-        console.log('Elemento canvas não encontrado');
-        return null;
-      }
+    (async () => {
+      try {
+        if (!this.resultsChart) this.createResultsChart();
 
-      // Aguardar um pouco para garantir que o gráfico foi renderizado
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      const dataUrl = canvas.toDataURL('image/png', 1.0);
-      console.log('Gráfico capturado com sucesso');
-      return dataUrl;
-    } catch (e) {
-      console.error('Erro ao capturar gráfico:', e);
-      return null;
-    }
-  }
+        // 1) captura gráfico agregado
+        const chartImgAgregado = await this.captureChartAsImage();
+        // 2) gera gráficos por participante (offscreen)
+        const chartsPorParticipante = await this.buildParticipantCharts(results);
 
-  private generatePDFWithChart(results: RoomResults, chartImageData: string | null): void {
-    try {
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      pdf.setFont('helvetica');
+        // 3) gera PDF com todos os gráficos
+        this.generatePDFWithCharts(results, chartImgAgregado, chartsPorParticipante);
 
-      // Cores do tema do PDF
-      const primary: [number, number, number] = [59, 130, 246];    // Azul
-      const secondary: [number, number, number] = [107, 114, 128]; // Cinza
-      const accent: [number, number, number] = [34, 197, 94];      // Verde
-      const lightBlue: [number, number, number] = [219, 234, 254]; // Azul claro
-
-      // Cabeçalho com fundo da cor
-      pdf.setFillColor(primary[0], primary[1], primary[2]);
-      pdf.rect(0, 0, 210, 40, 'F');
-      
-      // Título do relatório
-      pdf.setFontSize(24);
-      pdf.setTextColor(255, 255, 255); // Branco
-      pdf.text('RELATORIO DE RESULTADOS', 20, 25);
-
-      // Caixa de informações da sala
-      pdf.setFillColor(lightBlue[0], lightBlue[1], lightBlue[2]);
-      pdf.rect(15, 45, 180, 30, 'F');
-      pdf.setDrawColor(primary[0], primary[1], primary[2]);
-      pdf.setLineWidth(0.5);
-      pdf.rect(15, 45, 180, 30, 'S');
-
-      // Informações da sala
-      pdf.setFontSize(14);
-      pdf.setTextColor(primary[0], primary[1], primary[2]);
-      pdf.text('INFORMACOES DA SALA', 20, 55);
-      
-      pdf.setFontSize(12);
-      pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
-      pdf.text(`Sala: ${this.cleanText(results.room_title)}`, 20, 64);
-      pdf.text(`Codigo: ${results.room_code}`, 20, 70);
-      pdf.text(`Participantes: ${results.total_participants} pessoas`, 110, 64);
-      pdf.text(`Data: ${this.getCurrentDate()}`, 110, 70);
-
-      // Gráfico (se disponível)
-      if (chartImageData) {
-        pdf.setFontSize(18);
-        pdf.setTextColor(primary[0], primary[1], primary[2]);
-        pdf.text('GRAFICO DE RESULTADOS', 20, 90);
-
+        Swal.close();
+      } catch (err) {
+        console.error('Erro ao gerar relatório:', err);
+        Swal.close();
+        // Fallback: captura da modal
         try {
-          // Caixa para o gráfico
-          pdf.setFillColor(245, 245, 245); // Cinza muito claro
-          pdf.rect(15, 95, 180, 90, 'F');
-          pdf.setDrawColor(primary[0], primary[1], primary[2]);
-          pdf.rect(15, 95, 180, 90, 'S');
-          
-          const maxWidth = 170;
-          const maxHeight = 80;
-          pdf.addImage(chartImageData, 'PNG', 20, 100, maxWidth, maxHeight);
+          const modal = this.findResultsModalEl();
+          if (!modal) throw new Error('Modal não encontrada para fallback');
 
-          let y = 200;
-          this.renderResumoPorCor(pdf, results, primary, secondary, accent, lightBlue, y);
-        } catch (error) {
-          console.error('Erro ao adicionar gráfico:', error);
-          this.renderResumoPorCor(pdf, results, primary, secondary, accent, lightBlue, 90);
+          const imgData = await this.elementToPngDataUrl(modal);
+          const fileName = `relatorio_resultados_${results.room_code}_${new Date().toISOString().split('T')[0]}.pdf`;
+          await this.pngDataUrlToMultipagePdf(imgData, fileName);
+
+          Swal.fire({
+            icon: 'success',
+            title: 'Relatório PDF Gerado!',
+            text: 'Usamos o fallback de captura da modal por segurança.',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#28a745'
+          });
+        } catch (fallbackErr) {
+          console.error('Erro no fallback do relatório:', fallbackErr);
+          Swal.fire({
+            icon: 'error',
+            title: 'Erro ao Gerar Relatório',
+            text: 'Tente novamente. Se persistir, verifique se o gráfico está visível.',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#d33'
+          });
         }
-      } else {
-        this.renderResumoPorCor(pdf, results, primary, secondary, accent, lightBlue, 90);
       }
-
-      // Página de participantes detalhados
-      pdf.addPage();
-      this.renderParticipantesDetalhados(pdf, results, primary, secondary, accent);
-
-      // Página de estatísticas finais
-      pdf.addPage();
-      this.renderEstatisticasFinais(pdf, results, primary, secondary, accent);
-
-      // Adicionar numeração de páginas
-      this.addPageNumbers(pdf);
-
-      // Salvar o PDF
-      const fileName = `relatorio_${results.room_code}_${new Date().toISOString().split('T')[0]}.pdf`;
-      pdf.save(fileName);
-
-      Swal.fire({
-        icon: 'success',
-        title: 'Relatório PDF Gerado!',
-        text: 'O relatório em PDF foi criado e baixado com sucesso!',
-        confirmButtonText: 'OK',
-        confirmButtonColor: '#28a745'
-      });
-
-    } catch (error) {
-      console.error('Erro ao gerar PDF:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Erro ao Gerar PDF',
-        text: 'Não foi possível gerar o relatório em PDF. Tente novamente.',
-        confirmButtonText: 'OK',
-        confirmButtonColor: '#d33'
-      });
-    }
+    })();
   }
 
-  // -------------------- Funções auxiliares para geração de PDF --------------------
+  // >>>>>>>>>>>>> ALTERADO: agora aceita gráficos por participante
+  private generatePDFWithCharts(
+    results: RoomResults,
+    chartImageDataAgregado: string | null,
+    chartsPorParticipante: Map<number, string>
+  ): void {
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    pdf.setFont('helvetica');
+
+    const primary: [number, number, number] = [59, 130, 246];
+    const secondary: [number, number, number] = [107, 114, 128];
+    const accent: [number, number, number] = [34, 197, 94];
+    const lightBlue: [number, number, number] = [219, 234, 254];
+
+    // Cabeçalho
+    pdf.setFillColor(...primary);
+    pdf.rect(0, 0, 210, 40, 'F');
+    pdf.setFontSize(24);
+    pdf.setTextColor(255, 255, 255);
+    pdf.text('RELATORIO DE RESULTADOS', 20, 25);
+
+    // Info sala
+    pdf.setFillColor(...lightBlue);
+    pdf.rect(15, 45, 180, 30, 'F');
+    pdf.setDrawColor(...primary);
+    pdf.rect(15, 45, 180, 30, 'S');
+
+    pdf.setFontSize(14);
+    pdf.setTextColor(...primary);
+    pdf.text('INFORMACOES DA SALA', 20, 55);
+    pdf.setFontSize(12);
+    pdf.setTextColor(...secondary);
+    pdf.text(`Sala: ${this.cleanText(results.room_title)}`, 20, 64);
+    pdf.text(`Codigo: ${results.room_code}`, 20, 70);
+    pdf.text(`Participantes: ${results.total_participants} pessoas`, 110, 64);
+    pdf.text(`Data: ${this.getCurrentDate()}`, 110, 70);
+
+    let cursorY = 90;
+
+    // Gráfico agregado (se disponível)
+    if (chartImageDataAgregado) {
+      pdf.setFontSize(18);
+      pdf.setTextColor(...primary);
+      pdf.text('GRAFICO DE RESULTADOS (GERAL)', 20, cursorY);
+      cursorY += 5;
+
+      pdf.setFillColor(245, 245, 245);
+      pdf.rect(15, cursorY, 180, 90, 'F');
+      pdf.setDrawColor(...primary);
+      pdf.rect(15, cursorY, 180, 90, 'S');
+
+      const pageW = pdf.internal.pageSize.getWidth();
+      const margin = 20;
+      const maxW = pageW - margin * 2;
+      const maxH = 80;
+
+      const img = new Image();
+      img.src = chartImageDataAgregado;
+      const iw = img.width || 2000;
+      const ih = img.height || 1000;
+      const ratio = Math.min(maxW / iw, maxH / ih);
+      const renderW = Math.max(10, iw * ratio);
+      const renderH = Math.max(10, ih * ratio);
+
+      pdf.addImage(chartImageDataAgregado, 'PNG', 20, cursorY + 5, renderW, renderH);
+      cursorY += 95;
+
+      // Resumo por cor/planeta
+      this.renderResumoPorCor(pdf, results, primary, secondary, accent, lightBlue, cursorY);
+
+      // nova página antes dos participantes
+      pdf.addPage();
+    } else {
+      // sem gráfico agregado, já abre seção de participantes
+      pdf.addPage();
+    }
+
+    // Seção: Detalhes + GRÁFICO por participante
+    this.renderParticipantesDetalhados(pdf, results, primary, secondary, accent, chartsPorParticipante);
+
+    // Estatísticas finais
+    pdf.addPage();
+    this.renderEstatisticasFinais(pdf, results, primary, secondary, accent);
+
+    // Numeração
+    this.addPageNumbers(pdf);
+
+    const fileName = `relatorio_${results.room_code}_${new Date().toISOString().split('T')[0]}.pdf`;
+    pdf.save(fileName);
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Relatório PDF Gerado!',
+      text: 'O relatório em PDF foi criado e baixado com sucesso!',
+      confirmButtonText: 'OK',
+      confirmButtonColor: '#28a745'
+    });
+  }
+
+  // >>>>>>>>>>>>>>>>>>>>>>>>> FIM: BLOCO AJUSTADO PARA GRÁFICO/RELATÓRIO
+
+  private aggregateResultsByPlanet(results: RoomResults): Array<{ planet: string; totalCount: number }> {
+    const planetMap = new Map<string, number>();
+    const allPlanets = this.getAllPlanets();
+    allPlanets.forEach(p => planetMap.set(p, 0));
+
+    results.participants_results.forEach(p => {
+      p.results_by_color.forEach((cr: any) => {
+        const planetName = this.getPlanetNameFromColor(cr.color);
+        if (planetName && planetMap.has(planetName)) {
+          planetMap.set(planetName, (planetMap.get(planetName) || 0) + cr.count);
+        }
+      });
+    });
+
+    return Array.from(planetMap.entries())
+      .map(([planet, totalCount]) => ({ planet, totalCount }))
+      .sort((a, b) => b.totalCount - a.totalCount);
+  }
+
+  // -------------------- PDF – Seções auxiliares --------------------
 
   private renderResumoPorCor(
     pdf: jsPDF,
@@ -1309,125 +1419,121 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
   ): void {
     let y = startY;
     pdf.setFontSize(18);
-    pdf.setTextColor(primary[0], primary[1], primary[2]);
+    pdf.setTextColor(...primary);
     pdf.text('RESUMO DE CARTAS POR PLANETA', 20, y);
     y += 15;
 
-    // Caixa de fundo para o resumo
     const aggregated = this.aggregateResultsByPlanet(results);
     const boxHeight = (aggregated.length * 8) + 10;
-    pdf.setFillColor(lightBlue[0], lightBlue[1], lightBlue[2]);
+    pdf.setFillColor(...lightBlue);
     pdf.rect(15, y - 5, 180, boxHeight, 'F');
-    pdf.setDrawColor(primary[0], primary[1], primary[2]);
+    pdf.setDrawColor(...primary);
     pdf.rect(15, y - 5, 180, boxHeight, 'S');
 
     aggregated.forEach((p) => {
       if (y > 250) { pdf.addPage(); y = 20; }
       pdf.setFontSize(12);
-      pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
+      pdf.setTextColor(...secondary);
       pdf.text(`${this.getPlanetName(p.planet)}:`, 25, y);
       pdf.setFontSize(14);
-      pdf.setTextColor(accent[0], accent[1], accent[2]);
+      pdf.setTextColor(...accent);
       pdf.text(`${p.totalCount} cartas`, 120, y);
       y += 8;
     });
   }
 
-  private renderResumoPorCorFallback(
-    pdf: jsPDF,
-    results: RoomResults,
-    primary: [number, number, number],
-    secondary: [number, number, number],
-    accent: [number, number, number],
-    startY: number = 100
-  ): void {
-    let y = startY;
-    pdf.setFontSize(18);
-    pdf.setTextColor(primary[0], primary[1], primary[2]);
-    pdf.text('RESUMO DE CARTAS POR PLANETA', 20, y);
-    y += 15;
-
-    const aggregated = this.aggregateResultsByPlanet(results);
-    aggregated.forEach((p) => {
-      if (y > 250) { pdf.addPage(); y = 20; }
-      pdf.setFontSize(12);
-      pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
-      pdf.text(`${this.getPlanetName(p.planet)}:`, 25, y);
-      pdf.setFontSize(14);
-      pdf.setTextColor(accent[0], accent[1], accent[2]);
-      pdf.text(`${p.totalCount} cartas`, 120, y);
-      y += 8;
-    });
-  }
-
+  // >>>>>>>>>>>>> ALTERADO: agora recebe os charts por participante e desenha cada um
   private renderParticipantesDetalhados(
     pdf: jsPDF,
     results: RoomResults,
     primary: [number, number, number],
     secondary: [number, number, number],
-    accent: [number, number, number]
+    accent: [number, number, number],
+    chartsPorParticipante?: Map<number, string>
   ): void {
-    // Cabeçalho da página
-    pdf.setFillColor(primary[0], primary[1], primary[2]);
+    pdf.setFillColor(...primary);
     pdf.rect(0, 0, 210, 40, 'F');
-    
+
     pdf.setFontSize(18);
     pdf.setTextColor(255, 255, 255);
     pdf.text('DETALHES DOS PARTICIPANTES', 20, 25);
 
     let y = 50;
+
     results.participants_results.forEach((p, idx) => {
-      if (y > 250) { 
-        pdf.addPage(); 
-        y = 20; 
+      // Altura estimada por participante (título + infos + gráfico + linhas)
+      const chartH = 70;
+      const blockBaseH = 55;
+      const blockH = blockBaseH + chartH;
+
+      if (y + blockH > 280) {
+        pdf.addPage();
+        y = 20;
       }
 
-      // Caixa para cada participante
-      const participantBoxHeight = Math.min(40 + (p.detailed_votes.length * 8), 60);
+      // Caixa do participante
       pdf.setFillColor(245, 245, 245);
-      pdf.rect(15, y - 5, 180, participantBoxHeight, 'F');
-      pdf.setDrawColor(primary[0], primary[1], primary[2]);
-      pdf.rect(15, y - 5, 180, participantBoxHeight, 'S');
+      pdf.rect(15, y - 5, 180, blockH, 'F');
+      pdf.setDrawColor(...primary);
+      pdf.rect(15, y - 5, 180, blockH, 'S');
 
+      // Título + infos
       pdf.setFontSize(14);
-      pdf.setTextColor(primary[0], primary[1], primary[2]);
-      pdf.text(`${idx + 1}. ${this.cleanText(p.name)}`, 20, y); 
+      pdf.setTextColor(...primary);
+      pdf.text(`${idx + 1}. ${this.cleanText(p.name)}`, 20, y);
       y += 8;
 
       pdf.setFontSize(12);
-      pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
+      pdf.setTextColor(...secondary);
       const envelopeColor = this.getColorNameFromHex(p.envelope_choice);
       pdf.text(`Planeta Escolhido: ${envelopeColor}`, 25, y);
-      pdf.text(`Total de Cartas: ${p.total_votes}`, 25, y + 6);
-      y += 15;
+      pdf.text(`Total de Cartas: ${p.total_votes}`, 110, y);
+      y += 10;
 
-      if (p.detailed_votes.length > 0) {
+      // Gráfico por participante (se disponível)
+      const chartImg = chartsPorParticipante?.get(idx);
+      if (chartImg) {
+        // Centraliza dentro da caixa
+        const pageW = pdf.internal.pageSize.getWidth();
+        const marginX = 25;
+        const maxW = pageW - marginX * 2; // ~160mm
+        const renderW = maxW;
+        const renderH = chartH;
+
+        pdf.addImage(chartImg, 'PNG', marginX, y, renderW, renderH, undefined, 'FAST');
+      }
+
+      y += chartH + 10;
+
+      // (Opcional) você ainda pode listar algumas cartas recebidas (resumo)
+      if (p.detailed_votes?.length > 0) {
         pdf.setFontSize(11);
-        pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
-        pdf.text('Cartas Recebidas:', 25, y); 
+        pdf.setTextColor(...secondary);
+        pdf.text('Algumas cartas recebidas:', 25, y);
         y += 6;
 
-        p.detailed_votes.slice(0, 3).forEach((v) => { // Mostra apenas 3 cartas por participante para não ocupar muito espaço
-          if (y > 250) { pdf.addPage(); y = 20; }
+        p.detailed_votes.slice(0, 2).forEach((v: any) => {
+          if (y > 280) { pdf.addPage(); y = 20; }
           pdf.setFontSize(10);
-          pdf.text(`- ${this.cleanText(v.from_name)} -> ${v.card_color}`, 30, y); 
+          pdf.text(`- ${this.cleanText(v.from_name)} -> ${v.card_color}`, 30, y);
           y += 5;
 
           const desc = this.cleanText(v.card_description);
-          const shortDesc = desc.length > 50 ? desc.substring(0, 47) + '...' : desc;
+          const shortDesc = desc.length > 80 ? desc.substring(0, 77) + '...' : desc;
           pdf.text(`  ${shortDesc}`, 35, y);
           y += 4;
         });
-        
-        if (p.detailed_votes.length > 3) {
+
+        if (p.detailed_votes.length > 2) {
           pdf.setFontSize(10);
-          pdf.setTextColor(accent[0], accent[1], accent[2]);
-          pdf.text(`... e mais ${p.detailed_votes.length - 3} cartas`, 30, y);
+          pdf.setTextColor(...accent);
+          pdf.text(`... e mais ${p.detailed_votes.length - 2} cartas`, 30, y);
           y += 5;
         }
       }
 
-      y += participantBoxHeight - 15;
+      // Espaço antes do próximo
+      y += 6;
     });
   }
 
@@ -1438,68 +1544,62 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     secondary: [number, number, number],
     accent: [number, number, number]
   ): void {
-    // Cabeçalho da página
-    pdf.setFillColor(primary[0], primary[1], primary[2]);
+    pdf.setFillColor(...primary);
     pdf.rect(0, 0, 210, 40, 'F');
-    
+
     pdf.setFontSize(18);
     pdf.setTextColor(255, 255, 255);
     pdf.text('ESTATISTICAS FINAIS', 20, 25);
 
-    // Caixa com resumo geral
-    pdf.setFillColor(219, 234, 254); // Azul claro
+    pdf.setFillColor(219, 234, 254);
     pdf.rect(15, 45, 180, 35, 'F');
-    pdf.setDrawColor(primary[0], primary[1], primary[2]);
+    pdf.setDrawColor(...primary);
     pdf.rect(15, 45, 180, 35, 'S');
 
     pdf.setFontSize(14);
-    pdf.setTextColor(primary[0], primary[1], primary[2]);
+    pdf.setTextColor(...primary);
     pdf.text('RESUMO GERAL', 20, 55);
 
     const totalVotes = results.participants_results.reduce((sum, p) => sum + p.total_votes, 0);
-    
+
     pdf.setFontSize(12);
-    pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
+    pdf.setTextColor(...secondary);
     pdf.text(`Total de Participantes: ${results.total_participants} pessoas`, 20, 65);
     pdf.text(`Total de Cartas: ${totalVotes} cartas`, 20, 72);
 
     const mostVoted = this.aggregateResultsByPlanet(results)[0];
     if (mostVoted) {
-      pdf.setTextColor(accent[0], accent[1], accent[2]);
+      pdf.setTextColor(...accent);
       pdf.text(`Planeta Mais Usado: ${mostVoted.planet} (${mostVoted.totalCount} cartas)`, 110, 65);
     }
 
-    // Caixa com distribuição de cartas
-    pdf.setFillColor(245, 245, 245); // Cinza claro
+    pdf.setFillColor(245, 245, 245);
     pdf.rect(15, 90, 180, 120, 'F');
-    pdf.setDrawColor(primary[0], primary[1], primary[2]);
+    pdf.setDrawColor(...primary);
     pdf.rect(15, 90, 180, 120, 'S');
 
     pdf.setFontSize(16);
-    pdf.setTextColor(primary[0], primary[1], primary[2]);
+    pdf.setTextColor(...primary);
     pdf.text('DISTRIBUICAO DE CARTAS POR PLANETA', 20, 105);
 
     let y = 125;
     const aggregated = this.aggregateResultsByPlanet(results);
-    aggregated.forEach((p, index) => {
+    aggregated.forEach((p) => {
       const pct = totalVotes > 0 ? ((p.totalCount / totalVotes) * 100).toFixed(1) : '0.0';
-      
-      // Barra de progresso visual simples
       const barWidth = (p.totalCount / (mostVoted?.totalCount || 1)) * 120;
-      pdf.setFillColor(accent[0], accent[1], accent[2]);
+      pdf.setFillColor(...accent);
       pdf.rect(25, y - 3, barWidth, 6, 'F');
-      
+
       pdf.setFontSize(12);
-      pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
+      pdf.setTextColor(...secondary);
       pdf.text(`${this.getPlanetName(p.planet)}:`, 25, y + 8);
-      pdf.setTextColor(accent[0], accent[1], accent[2]);
+      pdf.setTextColor(...accent);
       pdf.text(`${p.totalCount} cartas (${pct}%)`, 80, y + 8);
       y += 18;
     });
 
-    // Rodapé com informações adicionais
     pdf.setFontSize(10);
-    pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
+    pdf.setTextColor(...secondary);
     pdf.text('Este relatorio foi gerado automaticamente pelo sistema.', 20, 260);
     pdf.text(`Sala finalizada com ${results.total_participants} participantes ativos.`, 20, 270);
   }
@@ -1509,7 +1609,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     for (let i = 1; i <= pageCount; i++) {
       pdf.setPage(i);
       pdf.setFontSize(10);
-      pdf.setTextColor(107, 114, 128); // Cinza
+      pdf.setTextColor(107, 114, 128);
       pdf.text(`Pagina ${i} de ${pageCount}`, 20, 287);
       pdf.text(`Gerado em ${this.getCurrentDate()}`, 120, 287);
     }
@@ -1517,7 +1617,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
 
   // -------------------- Captura da MODAL (Imagem/PDF) --------------------
 
-  /** Encontra o elemento da modal de resultados (tente marcar o container no HTML com data-results-modal) */
   private findResultsModalEl(): HTMLElement | null {
     try {
       const canvas = this.resultsChartCanvas?.nativeElement;
@@ -1539,32 +1638,33 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     );
   }
 
-  /** Converte um elemento visível em PNG (DataURL) sem passar nós clonados manualmente */
+  // Ajustada para capturar conteúdo alto/largo sem cortes
   private async elementToPngDataUrl(el: HTMLElement): Promise<string> {
     el.setAttribute('data-capture', 'true');
     try {
-      // Importação dinâmica do html2canvas
       const html2canvas = await import('html2canvas');
       const canvas = await (html2canvas as any).default(el, {
-        scale: 3, // Aumentei a escala para melhor qualidade
+        scale: 3,
         backgroundColor: '#ffffff',
         useCORS: true,
         allowTaint: true,
         logging: false,
         foreignObjectRendering: false,
-        removeContainer: true,
-        width: el.scrollWidth, // Captura a largura total
-        height: el.scrollHeight, // Captura a altura total
+        removeContainer: false,
+        windowWidth: document.documentElement.scrollWidth,
+        windowHeight: document.documentElement.scrollHeight,
+        width: el.scrollWidth,
+        height: el.scrollHeight,
         onclone: (doc: Document) => {
           const target = doc.querySelector('[data-capture="true"]') as HTMLElement | null;
           if (target) {
             target.style.maxHeight = 'none';
             target.style.overflow = 'visible';
-            target.style.position = 'relative';
+            target.style.position = 'static';
             target.style.transform = 'none';
             target.style.filter = 'none';
-            target.style.width = '100%';
-            target.style.height = 'auto';
+            target.style.width = `${el.scrollWidth}px`;
+            target.style.height = `${el.scrollHeight}px`;
           }
         }
       });
@@ -1574,7 +1674,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
-  /** Converte um PNG alto em PDF A4 múltiplas páginas automaticamente */
   private pngDataUrlToMultipagePdf(imgDataUrl: string, fileName: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       const img = new Image();
@@ -1582,12 +1681,11 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
         const pdf = new jsPDF('p', 'mm', 'a4');
         const pageW = pdf.internal.pageSize.getWidth();
         const pageH = pdf.internal.pageSize.getHeight();
-        const margin = 15; // Aumentei a margem para melhor aparência
+        const margin = 15;
         const renderW = pageW - margin * 2;
         const renderH = renderW * (img.height / img.width);
 
         if (renderH <= pageH - margin * 2) {
-          // Se couber em uma página, centralizar
           const yOffset = (pageH - renderH) / 2;
           pdf.addImage(imgDataUrl, 'PNG', margin, yOffset, renderW, renderH);
           pdf.save(fileName);
@@ -1595,7 +1693,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
           return;
         }
 
-        // multi-página: recorta o PNG em fatias verticais
         const pageCanvas = document.createElement('canvas');
         const ctx = pageCanvas.getContext('2d')!;
         const sliceHeightPx = Math.floor((img.width / renderW) * (pageH - margin * 2));
@@ -1615,8 +1712,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
           const sliceRenderH = (h / img.width) * renderW;
 
           if (!first) pdf.addPage();
-          
-          // Centralizar horizontalmente se a fatia for menor que a página
           const xOffset = (pageW - renderW) / 2;
           pdf.addImage(sliceData, 'PNG', xOffset, margin, renderW, sliceRenderH);
 
@@ -1632,123 +1727,14 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
-  /** Baixa a modal como **imagem PNG** */
-  downloadModalAsImage(): void {
-    const results = this.currentResults();
-    if (!results) return;
-
-    const modal = this.findResultsModalEl();
-    if (!modal) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Modal não encontrada',
-        text: 'Não foi possível localizar a modal de resultados visível.',
-        confirmButtonText: 'OK',
-        confirmButtonColor: '#d33'
-      });
-      return;
-    }
-
-    Swal.fire({
-      title: 'Gerando imagem...',
-      text: 'Capturando a modal completa.',
-      allowOutsideClick: false,
-      didOpen: () => Swal.showLoading()
-    });
-
-    // pequena espera para garantir layout estável (transições)
-    setTimeout(async () => {
-      try {
-        const imgData = await this.elementToPngDataUrl(modal);
-        const link = document.createElement('a');
-        link.download = `resultados_${results.room_code}_${new Date().toISOString().split('T')[0]}.png`;
-        link.href = imgData;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        Swal.close();
-        Swal.fire({
-          icon: 'success',
-          title: 'Imagem Baixada!',
-          text: 'A modal foi capturada como PNG.',
-          confirmButtonText: 'OK',
-          confirmButtonColor: '#28a745'
-        });
-      } catch (e) {
-        console.error('Erro ao capturar modal (PNG):', e);
-        Swal.fire({
-          icon: 'error',
-          title: 'Erro ao Gerar Imagem',
-          text: 'Não foi possível capturar a modal como imagem.',
-          confirmButtonText: 'OK',
-          confirmButtonColor: '#d33'
-        });
-      }
-    }, 300);
-  }
-
-  /** Baixa a modal como **PDF A4 multipágina** */
-  downloadModalAsPdf(): void {
-    const results = this.currentResults();
-    if (!results) return;
-
-    const modal = this.findResultsModalEl();
-    if (!modal) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Modal não encontrada',
-        text: 'Não foi possível localizar a modal de resultados visível.',
-        confirmButtonText: 'OK',
-        confirmButtonColor: '#d33'
-      });
-      return;
-    }
-
-    Swal.fire({
-      title: 'Gerando Relatório PDF...',
-      text: 'Capturando a modal completa e convertendo para PDF.',
-      allowOutsideClick: false,
-      didOpen: () => Swal.showLoading()
-    });
-
-    // Aguardar um pouco mais para garantir que o layout está estável
-    setTimeout(async () => {
-      try {
-        const imgData = await this.elementToPngDataUrl(modal);
-        const fileName = `relatorio_resultados_${results.room_code}_${new Date().toISOString().split('T')[0]}.pdf`;
-        await this.pngDataUrlToMultipagePdf(imgData, fileName);
-        Swal.close();
-        Swal.fire({
-          icon: 'success',
-          title: 'Relatório PDF Gerado!',
-          text: 'O relatório completo foi capturado da modal e convertido em PDF.',
-          confirmButtonText: 'OK',
-          confirmButtonColor: '#28a745'
-        });
-      } catch (e) {
-        console.error('Erro ao capturar modal (PDF):', e);
-        Swal.close();
-        Swal.fire({
-          icon: 'error',
-          title: 'Erro ao Gerar PDF',
-          text: 'Não foi possível capturar a modal para PDF. Tente novamente.',
-          confirmButtonText: 'OK',
-          confirmButtonColor: '#d33'
-        });
-      }
-    }, 500); // Aumentei o tempo de espera para garantir estabilidade
-  }
-
   // -------------------- Utilitários --------------------
 
   private cleanText(text: string): string {
     if (!text) return '';
-    
-    // Remove emojis e caracteres especiais problemáticos
     return text
-      .replace(/[\uD83C-\uDBFF\uDC00-\uDFFF]+/g, '') // Remove emojis
-      .replace(/[\u2600-\u26FF]/g, '')   // Símbolos diversos
-      .replace(/[\u2700-\u27BF]/g, '')   // Dingbats
+      .replace(/[\uD83C-\uDBFF\uDC00-\uDFFF]+/g, '')
+      .replace(/[\u2600-\u26FF]/g, '')
+      .replace(/[\u2700-\u27BF]/g, '')
       .replace(/[áàâãäåæ]/g, 'a')
       .replace(/[éèêë]/g, 'e')
       .replace(/[íìîï]/g, 'i')
@@ -1763,7 +1749,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       .replace(/[ÚÙÛÜ]/g, 'U')
       .replace(/[Ç]/g, 'C')
       .replace(/[Ñ]/g, 'N')
-      .replace(/[^\w\s\-\.\,\!\?\(\)]/g, '') // Remove outros caracteres especiais
+      .replace(/[^\w\s\-\.\,\!\?\(\)]/g, '')
       .trim();
   }
 
@@ -1787,7 +1773,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     return this.getPlanetNameFromColor(hex);
   }
 
-  // Função para obter o nome do planeta a partir da cor (versão melhorada)
   getPlanetName(color: string): string {
     return this.getPlanetNameFromColor(color);
   }
@@ -1800,7 +1785,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     return this.aggregateResultsByPlanet(results);
   }
 
-  // Função para obter o nome do planeta a partir da cor
   getPlanetNameFromColor(color: string): string {
     const colorMap: Record<string, string> = {
       'roxo': 'Lua',
@@ -1809,14 +1793,12 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       'vermelho': 'Marte',
       'laranja': 'Jupiter',
       'azul': 'Saturno',
-      // Adicionar suporte para hex codes também
       '#8B5CF6': 'Lua',
       '#EAB308': 'Mercúrio',
       '#22C55E': 'Vênus',
       '#EF4444': 'Marte',
       '#F97316': 'Jupiter',
       '#3B82F6': 'Saturno',
-      // Adicionar suporte para cores em inglês também
       'purple': 'Lua',
       'yellow': 'Mercúrio',
       'green': 'Vênus',
@@ -1824,13 +1806,11 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       'orange': 'Jupiter',
       'blue': 'Saturno'
     };
-    
-    // Normalizar a cor para comparação
+
     const normalizedColor = color.toLowerCase().trim();
     return colorMap[normalizedColor] || color;
   }
 
-  // Função para obter a cor a partir do nome do planeta
   getColorFromPlanet(planet: string): string {
     const planetMap: Record<string, string> = {
       'Lua': '#8B5CF6',
@@ -1843,7 +1823,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     return planetMap[planet] || '#6B7280';
   }
 
-  // Função para calcular cartas por planeta para um participante específico
   getParticipantPlanetVotes(participant: any, planet: string): number {
     let count = 0;
     participant.results_by_color.forEach((cr: any) => {
@@ -1854,7 +1833,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     return count;
   }
 
-  // Função para calcular a porcentagem de cartas por planeta para um participante
   getParticipantPlanetPercentage(participant: any, planet: string): number {
     const planetVotes = this.getParticipantPlanetVotes(participant, planet);
     const totalVotes = participant.total_votes;
@@ -1862,7 +1840,6 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     return Math.round((planetVotes / totalVotes) * 100);
   }
 
-  // Função para obter todos os planetas em ordem
   getAllPlanets(): string[] {
     return ['Lua', 'Mercúrio', 'Vênus', 'Marte', 'Jupiter', 'Saturno'];
   }
@@ -1874,7 +1851,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     const year = now.getFullYear();
     const hour = now.getHours().toString().padStart(2, '0');
     const minute = now.getMinutes().toString().padStart(2, '0');
-    
+
     return `${day}/${month}/${year} ${hour}:${minute}`;
   }
 }

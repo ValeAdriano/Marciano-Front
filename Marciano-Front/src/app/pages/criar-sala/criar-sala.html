@@ -437,8 +437,16 @@
           <div class="bg-white rounded-lg border border-gray-200 p-4">
             <h4 class="text-lg font-semibold text-gray-800 mb-4">🗳️ Cartas Detalhadas por Participante</h4>
             <div class="space-y-6">
-              <div *ngFor="let participant of currentResults()!.participants_results" class="border-l-4 border-blue-200 pl-4">
+              <div *ngFor="let participant of currentResults()!.participants_results; let i = index; trackBy: trackById" class="border-l-4 border-blue-200 pl-4">
                 <h5 class="font-medium text-gray-800 mb-3">{{ participant.name }}</h5>
+                
+                <!-- Canvas para gráfico Chart.js do participante -->
+                <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                  <h6 class="text-sm font-medium text-gray-700 mb-3">📊 Gráfico de Cartas por Planeta</h6>
+                  <div class="h-80">
+                    <canvas #participantChartCanvas></canvas>
+                  </div>
+                </div>
                 
                 <!-- Gráfico de barras para o participante -->
                 <div class="bg-gray-50 p-4 rounded-lg">
