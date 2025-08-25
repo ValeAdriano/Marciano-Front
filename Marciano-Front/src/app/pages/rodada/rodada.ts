@@ -257,8 +257,8 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
     if (code && this.voteState.hasVotedInCurrentRound(code, currentStatus)) {
       // Se já votou, mostrar SweetAlert impedindo o voto
       Swal.fire({
-        title: '❌ Voto Já Realizado!',
-        text: 'Você já realizou seu voto nesta rodada. Não é possível votar novamente.',
+        title: '❌ Carta já enviada!',
+        text: 'Você já enviou sua carta nesta rodada. Não é possível enviar novamente.',
         icon: 'warning',
         confirmButtonText: 'Entendi',
         allowOutsideClick: true,
@@ -733,7 +733,7 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
   private showAlreadyVotedMessage(): void {
     // Mostrar mensagem de que já votou
     Swal.fire({
-      title: 'Você já votou nesta rodada!',
+      title: 'Você já enviou sua carta nesta rodada!',
       text: 'Aguarde os demais participantes. Esta janela fechará automaticamente quando a próxima rodada começar.',
       icon: 'info',
       allowOutsideClick: false,
@@ -782,7 +782,7 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
   private showWaitingForNextRoundMessage(): void {
     Swal.fire({
       title: '⏳ Aguardando Próxima Rodada',
-      text: 'Você já realizou seu voto nesta rodada. Aguarde os demais participantes.',
+      text: 'Você já enviou sua carta nesta rodada. Aguarde os demais participantes.',
       icon: 'info',
       allowOutsideClick: false,
       allowEscapeKey: false,

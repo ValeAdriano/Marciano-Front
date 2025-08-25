@@ -141,7 +141,7 @@ export class CriarSalaService {
   }
 
   /**
-   * Limpa todos os votos de uma sala
+   * Limpa todos as cartas de uma sala
    */
   clearAllVotes(roomCode: string): Observable<any> {
     return this.http.delete(`${this.apiUrl}/${roomCode}/votes`);

@@ -444,7 +444,7 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
     if (code && this.voteState.hasVotedInCurrentRound(code, currentStatus)) {
       // Se já votou, mostrar SweetAlert impedindo o voto
       Swal.fire({
-        title: '❌ Voto Já Realizado!',
+        title: '❌ Carta já enviada!',
         text: 'Você já realizou sua autoavaliação nesta rodada. Não é possível votar novamente.',
         icon: 'warning',
         confirmButtonText: 'Entendi',
@@ -539,7 +539,7 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
           timer: undefined, // Sem timer automático - será fechado pelo handleStatusChange
         });
       } else {
-        this.toastError(`Erro ao registrar voto: ${result.error}`);
+        this.toastError(`Erro ao registrar carta: ${result.error}`);
       }
     } catch (error) {
       this.toastInfo('Não foi possível registrar no servidor (offline?). Sua seleção será mantida localmente.');
@@ -625,7 +625,7 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
   private showAlreadyVotedMessage(): void {
     // Mostrar mensagem de que já votou
     Swal.fire({
-      title: 'Você já votou nesta rodada!',
+      title: 'Você já enviou sua carta nesta rodada!',
       text: 'Aguarde o próximo passo. Esta janela fechará automaticamente quando a próxima etapa começar.',
       icon: 'info',
       allowOutsideClick: false,

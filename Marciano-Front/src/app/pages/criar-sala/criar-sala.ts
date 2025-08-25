@@ -4,6 +4,7 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
 import { Router } from '@angular/router';
 import { takeUntil, Subject } from 'rxjs';
 import { CriarSalaService, CreateRoomRequest, Room, RoomReport, RoomStatus, RoomResults } from './criar-sala.service';
+import { SocketService } from '../../@shared/services/socket.service';
 import Swal from 'sweetalert2';
 import Chart from 'chart.js/auto';
 import jsPDF from 'jspdf';
@@ -22,6 +23,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
   private readonly criarSalaService = inject(CriarSalaService);
+  private readonly socketService = inject(SocketService);
 
   // Formulário
   form!: FormGroup;
@@ -37,6 +39,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
   readonly roomStatuses = signal<Map<string, RoomStatus>>(new Map());
   readonly loadingStatuses = signal<Set<string>>(new Set());
   readonly expandedRooms = signal<Set<string>>(new Set());
+  readonly lastUpdateTimes = signal<Map<string, Date>>(new Map());
 
   // Modal de resultados
   readonly showResultsModal = signal<boolean>(false);
@@ -47,10 +50,15 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
   // Computed
   readonly displayName = computed(() => 'Usuário');
 
+  // Timer para atualizações automáticas
+  private updateTimer: any = null;
+
   ngOnInit(): void {
     this.initForm();
     this.generateCode();
     this.loadReports();
+    this.setupSocketListeners();
+    this.startAutoUpdate();
   }
 
   ngAfterViewInit(): void {}
@@ -59,6 +67,99 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     this.destroy$.next();
     this.destroy$.complete();
     if (this.resultsChart) this.resultsChart.destroy();
+    if (this.updateTimer) clearInterval(this.updateTimer);
+    this.socketService.disconnect();
+  }
+
+  // -------------------- Socket e Atualizações em Tempo Real --------------------
+
+  private setupSocketListeners(): void {
+    // Conectar ao socket
+    this.socketService.connect();
+
+    // Listener para quando uma rodada é finalizada
+    this.socketService.onRoundFinished$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(event => {
+        console.log('Rodada finalizada via socket:', event);
+        // Atualizar status da sala correspondente
+        if (event.round && event.round.roomId) {
+          // Buscar a sala pelo roomId e atualizar
+          this.updateRoomStatusByRoomId(event.round.roomId);
+        }
+      });
+
+    // Listener para quando uma rodada é iniciada
+    this.socketService.onRoundStarted$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(event => {
+        console.log('Rodada iniciada via socket:', event);
+        // Atualizar status da sala correspondente
+        if (event.round && event.round.roomId) {
+          // Buscar a sala pelo roomId e atualizar
+          this.updateRoomStatusByRoomId(event.round.roomId);
+        }
+      });
+
+    // Listener para quando um participante entra/sai
+    this.socketService.onParticipantJoined$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(event => {
+        console.log('Participante entrou via socket:', event);
+        // Atualizar todas as salas ativas
+        this.updateActiveRooms();
+      });
+
+    this.socketService.onParticipantLeft$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(event => {
+        console.log('Participante saiu via socket:', event);
+        // Atualizar todas as salas ativas
+        this.updateActiveRooms();
+      });
+
+    // Listener para erros do socket
+    this.socketService.onError$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(error => {
+        console.error('Erro do socket:', error);
+        // Mostrar notificação de erro
+        this.showSocketError(error);
+      });
+  }
+
+  private startAutoUpdate(): void {
+    // Atualizar status das salas ativas a cada 10 segundos
+    this.updateTimer = setInterval(() => {
+      this.updateActiveRooms();
+    }, 10000);
+  }
+
+  private updateActiveRooms(): void {
+    const activeRooms = this.reports().filter(r => !this.isRoomFinished(r.code));
+    activeRooms.forEach(room => {
+      this.loadRoomStatus(room.code);
+    });
+  }
+
+  private showSocketError(error: string): void {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Problema de Conexão',
+      text: `Erro de comunicação: ${error}`,
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 5000
+    });
+  }
+
+  private updateRoomStatusByRoomId(roomId: string): void {
+    // Buscar a sala pelo roomId nos relatórios
+    const room = this.reports().find(r => r.id.toString() === roomId);
+    if (room) {
+      this.loadRoomStatus(room.code);
+    }
   }
 
   // -------------------- Form / Código --------------------
@@ -201,6 +302,12 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
           const statuses = new Map(this.roomStatuses());
           statuses.set(roomCode, status);
           this.roomStatuses.set(statuses);
+          
+          // Registrar tempo da última atualização
+          const updateTimes = new Map(this.lastUpdateTimes());
+          updateTimes.set(roomCode, new Date());
+          this.lastUpdateTimes.set(updateTimes);
+          
           this.loadingStatuses().delete(roomCode);
         },
         error: (error: any) => {
@@ -208,6 +315,22 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
           this.loadingStatuses().delete(roomCode);
         }
       });
+  }
+
+  refreshRoomStatus(roomCode: string): void {
+    // Força atualização do status da sala
+    this.loadRoomStatus(roomCode);
+    
+    // Mostra notificação de atualização
+    Swal.fire({
+      icon: 'info',
+      title: 'Atualizando Status',
+      text: `Status da sala ${roomCode} sendo atualizado...`,
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 2000
+    });
   }
 
   advanceToNextRound(roomCode: string): void {
@@ -314,6 +437,94 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     return Math.round(Math.min((current_votes / expected_votes) * 100, 100));
   }
 
+  // -------------------- Métodos para Cartas por Rodada --------------------
+
+  getVotesByRound(roomCode: string): Array<{ round: number; current: number; expected: number; percentage: number; status: string }> {
+    const status = this.getRoomStatus(roomCode);
+    if (!status) return [];
+
+    const rounds: Array<{ round: number; current: number; expected: number; percentage: number; status: string }> = [];
+    
+    // Rodada 0 (Autoavaliação)
+    if (status.status === 'rodada_0' || status.current_round >= 0) {
+      rounds.push({
+        round: 0,
+        current: status.round_progress?.current_votes || 0,
+        expected: status.round_progress?.expected_votes || 0,
+        percentage: this.calculateRoundPercentage(status.round_progress?.current_votes || 0, status.round_progress?.expected_votes || 0),
+        status: status.status === 'rodada_0' ? 'ativa' : 'concluída'
+      });
+    }
+
+    // Rodadas de votação (1, 2, 3...)
+    for (let i = 1; i <= status.max_rounds; i++) {
+      const isCurrentRound = status.current_round === i;
+      const isCompleted = status.current_round > i;
+      
+      if (isCurrentRound || isCompleted) {
+        rounds.push({
+          round: i,
+          current: isCurrentRound ? (status.round_progress?.current_votes || 0) : (status.round_progress?.expected_votes || 0),
+          expected: status.round_progress?.expected_votes || 0,
+          percentage: isCurrentRound 
+            ? this.calculateRoundPercentage(status.round_progress?.current_votes || 0, status.round_progress?.expected_votes || 0)
+            : 100,
+          status: isCurrentRound ? 'ativa' : 'concluída'
+        });
+      }
+    }
+
+    return rounds;
+  }
+
+  private calculateRoundPercentage(current: number, expected: number): number {
+    if (expected === 0) return 0;
+    return Math.round(Math.min((current / expected) * 100, 100));
+  }
+
+  getRoundStatusBadge(round: { round: number; status: string; percentage: number }): string {
+    if (round.status === 'concluída') return 'bg-green-100 text-green-800';
+    if (round.status === 'ativa') {
+      if (round.percentage >= 100) return 'bg-blue-100 text-blue-800';
+      if (round.percentage >= 50) return 'bg-yellow-100 text-yellow-800';
+      return 'bg-red-100 text-red-800';
+    }
+    return 'bg-gray-100 text-gray-800';
+  }
+
+  getRoundDisplayName(roundNumber: number): string {
+    if (roundNumber === 0) return '🎯 Rodada 0 - Autoavaliação';
+    return `🗳️ Rodada ${roundNumber} - Votação`;
+  }
+
+  getRoundProgressColor(percentage: number): string {
+    if (percentage >= 100) return 'bg-green-500';
+    if (percentage >= 75) return 'bg-blue-500';
+    if (percentage >= 50) return 'bg-yellow-500';
+    if (percentage >= 25) return 'bg-orange-500';
+    return 'bg-red-500';
+  }
+
+  getLastUpdateTime(roomCode: string): string {
+    const lastUpdate = this.lastUpdateTimes().get(roomCode);
+    if (!lastUpdate) return 'Nunca';
+    
+    const now = new Date();
+    const diffMs = now.getTime() - lastUpdate.getTime();
+    
+    if (diffMs < 60000) return 'Agora mesmo';
+    if (diffMs < 300000) return 'Há poucos minutos';
+    if (diffMs < 600000) return 'Há 5 minutos';
+    if (diffMs < 1800000) return 'Há 15 minutos';
+    if (diffMs < 3600000) return 'Há 30 minutos';
+    
+    const hours = Math.floor(diffMs / 3600000);
+    if (hours < 24) return `Há ${hours} hora${hours > 1 ? 's' : ''}`;
+    
+    const days = Math.floor(hours / 24);
+    return `Há ${days} dia${days > 1 ? 's' : ''}`;
+  }
+
   getStatusBadgeColor(status: string | undefined): string {
     if (!status) return 'bg-gray-100 text-gray-800';
     if (status === 'lobby') return 'bg-blue-100 text-blue-800';
@@ -337,7 +548,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
         <p>Esta ação é <strong>IRREVERSÍVEL</strong>!</p>
         <p>A sala <strong>${roomCode}</strong> será deletada permanentemente junto com:</p>
         <ul style="text-align: left; margin-top: 1rem;">
-          <li>• Todos os votos</li>
+          <li>• Todas as cartas</li>
           <li>• Todos os participantes</li>
           <li>• Todo o histórico</li>
           <li>• Todos os dados relacionados</li>
@@ -389,7 +600,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
   resetRoom(roomCode: string): void {
     Swal.fire({
       title: 'Resetar Sala?',
-      text: 'Esta ação irá resetar a sala para o estado inicial, limpando todos os votos e resetando as rodadas.',
+      text: 'Esta ação irá resetar a sala para o estado inicial, limpando todas as cartas e resetando as rodadas.',
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: 'Sim, Resetar',
@@ -428,8 +639,8 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
 
   clearAllVotes(roomCode: string): void {
     Swal.fire({
-      title: 'Limpar Todos os Votos?',
-      text: 'Esta ação irá remover todos os votos da sala, mas manterá os participantes e o progresso das rodadas.',
+      title: 'Limpar Todas as Cartas?',
+      text: 'Esta ação irá remover todas as cartas da sala, mas manterá os participantes e o progresso das rodadas.',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Sim, Limpar',
@@ -445,18 +656,18 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
               this.loadRoomStatus(roomCode);
               Swal.fire({
                 icon: 'success',
-                title: 'Votos Limpos!',
-                text: 'Todos os votos da sala foram removidos.',
+                title: 'Cartas Limpos!',
+                text: 'Todas as cartas da sala foram removidas.',
                 confirmButtonText: 'OK',
                 confirmButtonColor: '#28a745'
               });
             },
             error: (error: any) => {
-              console.error('Erro ao limpar votos:', error);
+              console.error('Erro ao limpar cartas:', error);
               Swal.fire({
                 icon: 'error',
-                title: 'Erro ao Limpar Votos',
-                text: 'Não foi possível limpar os votos da sala.',
+                title: 'Erro ao Limpar Cartas',
+                text: 'Não foi possível limpar as cartas da sala.',
                 confirmButtonText: 'OK',
                 confirmButtonColor: '#d33'
               });
@@ -588,7 +799,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
             html: `
               <div style="text-align: left;">
                 <p><strong>Participantes:</strong> ${stats.participants_count || 0}</p>
-                <p><strong>Votos totais:</strong> ${stats.total_votes || 0}</p>
+                <p><strong>Cartas totais:</strong> ${stats.total_votes || 0}</p>
                 <p><strong>Rodada atual:</strong> ${stats.current_round || 0}/${stats.max_rounds || 0}</p>
                 <p><strong>Status:</strong> ${this.getStatusDisplay(stats.status)}</p>
                 <p><strong>Criada em:</strong> ${new Date(stats.created_at).toLocaleString()}</p>
@@ -627,7 +838,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
             🏁 Finalizar Sala Completamente
           </button>
           <button id="clear-votes" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded font-medium">
-            🗳️ Limpar Todos os Votos
+            🗳️ Limpar Todas as Cartas
           </button>
           <button id="export-csv" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded font-medium">
             📄 Exportar CSV
@@ -895,7 +1106,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       data: {
         labels: aggregated.map(r => r.planet),
         datasets: [{
-          label: 'Total de Votos',
+          label: 'Total de Cartas',
           data: aggregated.map(r => r.totalCount),
           backgroundColor: aggregated.map(r => this.getColorFromPlanet(r.planet)),
           borderColor: aggregated.map(r => this.getColorFromPlanet(r.planet)),
@@ -908,7 +1119,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
         plugins: {
           title: {
             display: true,
-            text: `Resumo de Votos por Planeta - ${results.room_title}`,
+            text: `Resumo de Cartas por Planeta - ${results.room_title}`,
             font: { size: 16, weight: 'bold' }
           },
           legend: { display: false }
@@ -1099,7 +1310,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     let y = startY;
     pdf.setFontSize(18);
     pdf.setTextColor(primary[0], primary[1], primary[2]);
-    pdf.text('RESUMO DE VOTOS POR PLANETA', 20, y);
+    pdf.text('RESUMO DE CARTAS POR PLANETA', 20, y);
     y += 15;
 
     // Caixa de fundo para o resumo
@@ -1117,7 +1328,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       pdf.text(`${this.getPlanetName(p.planet)}:`, 25, y);
       pdf.setFontSize(14);
       pdf.setTextColor(accent[0], accent[1], accent[2]);
-      pdf.text(`${p.totalCount} votos`, 120, y);
+      pdf.text(`${p.totalCount} cartas`, 120, y);
       y += 8;
     });
   }
@@ -1133,7 +1344,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     let y = startY;
     pdf.setFontSize(18);
     pdf.setTextColor(primary[0], primary[1], primary[2]);
-    pdf.text('RESUMO DE VOTOS POR PLANETA', 20, y);
+    pdf.text('RESUMO DE CARTAS POR PLANETA', 20, y);
     y += 15;
 
     const aggregated = this.aggregateResultsByPlanet(results);
@@ -1144,7 +1355,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       pdf.text(`${this.getPlanetName(p.planet)}:`, 25, y);
       pdf.setFontSize(14);
       pdf.setTextColor(accent[0], accent[1], accent[2]);
-      pdf.text(`${p.totalCount} votos`, 120, y);
+      pdf.text(`${p.totalCount} cartas`, 120, y);
       y += 8;
     });
   }
@@ -1187,16 +1398,16 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
       const envelopeColor = this.getColorNameFromHex(p.envelope_choice);
       pdf.text(`Planeta Escolhido: ${envelopeColor}`, 25, y);
-      pdf.text(`Total de Votos: ${p.total_votes}`, 25, y + 6);
+      pdf.text(`Total de Cartas: ${p.total_votes}`, 25, y + 6);
       y += 15;
 
       if (p.detailed_votes.length > 0) {
         pdf.setFontSize(11);
         pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
-        pdf.text('Votos Recebidos:', 25, y); 
+        pdf.text('Cartas Recebidas:', 25, y); 
         y += 6;
 
-        p.detailed_votes.slice(0, 3).forEach((v) => { // Mostra apenas 3 votos por participante para não ocupar muito espaço
+        p.detailed_votes.slice(0, 3).forEach((v) => { // Mostra apenas 3 cartas por participante para não ocupar muito espaço
           if (y > 250) { pdf.addPage(); y = 20; }
           pdf.setFontSize(10);
           pdf.text(`- ${this.cleanText(v.from_name)} -> ${v.card_color}`, 30, y); 
@@ -1211,7 +1422,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
         if (p.detailed_votes.length > 3) {
           pdf.setFontSize(10);
           pdf.setTextColor(accent[0], accent[1], accent[2]);
-          pdf.text(`... e mais ${p.detailed_votes.length - 3} votos`, 30, y);
+          pdf.text(`... e mais ${p.detailed_votes.length - 3} cartas`, 30, y);
           y += 5;
         }
       }
@@ -1250,15 +1461,15 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     pdf.setFontSize(12);
     pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
     pdf.text(`Total de Participantes: ${results.total_participants} pessoas`, 20, 65);
-    pdf.text(`Total de Votos: ${totalVotes} votos`, 20, 72);
+    pdf.text(`Total de Cartas: ${totalVotes} cartas`, 20, 72);
 
     const mostVoted = this.aggregateResultsByPlanet(results)[0];
     if (mostVoted) {
       pdf.setTextColor(accent[0], accent[1], accent[2]);
-      pdf.text(`Planeta Mais Votado: ${mostVoted.planet} (${mostVoted.totalCount} votos)`, 110, 65);
+      pdf.text(`Planeta Mais Usado: ${mostVoted.planet} (${mostVoted.totalCount} cartas)`, 110, 65);
     }
 
-    // Caixa com distribuição de votos
+    // Caixa com distribuição de cartas
     pdf.setFillColor(245, 245, 245); // Cinza claro
     pdf.rect(15, 90, 180, 120, 'F');
     pdf.setDrawColor(primary[0], primary[1], primary[2]);
@@ -1266,7 +1477,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
 
     pdf.setFontSize(16);
     pdf.setTextColor(primary[0], primary[1], primary[2]);
-    pdf.text('DISTRIBUICAO DE VOTOS POR PLANETA', 20, 105);
+    pdf.text('DISTRIBUICAO DE CARTAS POR PLANETA', 20, 105);
 
     let y = 125;
     const aggregated = this.aggregateResultsByPlanet(results);
@@ -1282,7 +1493,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
       pdf.text(`${this.getPlanetName(p.planet)}:`, 25, y + 8);
       pdf.setTextColor(accent[0], accent[1], accent[2]);
-      pdf.text(`${p.totalCount} votos (${pct}%)`, 80, y + 8);
+      pdf.text(`${p.totalCount} cartas (${pct}%)`, 80, y + 8);
       y += 18;
     });
 
@@ -1632,7 +1843,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     return planetMap[planet] || '#6B7280';
   }
 
-  // Função para calcular votos por planeta para um participante específico
+  // Função para calcular cartas por planeta para um participante específico
   getParticipantPlanetVotes(participant: any, planet: string): number {
     let count = 0;
     participant.results_by_color.forEach((cr: any) => {
@@ -1643,7 +1854,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     return count;
   }
 
-  // Função para calcular a porcentagem de votos por planeta para um participante
+  // Função para calcular a porcentagem de cartas por planeta para um participante
   getParticipantPlanetPercentage(participant: any, planet: string): number {
     const planetVotes = this.getParticipantPlanetVotes(participant, planet);
     const totalVotes = participant.total_votes;
