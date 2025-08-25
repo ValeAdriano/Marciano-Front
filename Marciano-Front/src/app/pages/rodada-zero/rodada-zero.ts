@@ -200,6 +200,10 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
             break;
           case 'round:started':
             console.log('🎯 Processando round:started:', event.totalSeconds);
+            // CORREÇÃO CRÍTICA: Fechar todos os SweetAlerts quando uma nova rodada começar
+            this.forceCloseAllSweetAlerts();
+            // CORREÇÃO ESPECÍFICA: Fechar SweetAlerts específicos da rodada_0
+            this.closeRoundZeroSweetAlerts();
             // Iniciar timer quando a rodada for iniciada
             this.rodada.onRoundStarted(event.totalSeconds);
             break;
@@ -260,13 +264,21 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
       return; // Sair do método para não executar o resto da lógica
     }
     
-    // Limpar o lastvote da rodada anterior quando mudar de status
+    // VERIFICAÇÃO CRÍTICA: Se mudou de rodada_0 para rodada_1+, fechar SweetAlerts imediatamente
     const code = this.roomCode();
     const previousStatus = this._roomStatus()?.status;
     console.log('📝 Status anterior:', previousStatus, 'Status atual:', currentStatus);
     
     if (code && previousStatus && previousStatus !== currentStatus) {
       console.log('🔄 Status mudou, limpando lastvote da rodada anterior');
+      
+      // CORREÇÃO ESPECÍFICA: Se mudou de rodada_0 para rodada_1+, fechar SweetAlerts imediatamente
+      if (previousStatus === 'rodada_0' && currentStatus.startsWith('rodada_') && currentStatus !== 'rodada_0') {
+        console.log('🎯 Mudança de rodada_0 para nova rodada detectada - fechando SweetAlerts...');
+        this.forceCloseAllSweetAlerts();
+        this.closeRoundZeroSweetAlerts();
+      }
+      
       // Limpar lastvote da rodada anterior
       const lastVoteKey = `lastvote_${code}`;
       localStorage.removeItem(lastVoteKey);
@@ -320,6 +332,43 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
       console.log('✅ Todos os SweetAlerts foram fechados com sucesso');
     } catch (error) {
       console.warn('⚠️ Erro ao fechar SweetAlerts:', error);
+    }
+  }
+
+  /**
+   * Método específico para fechar SweetAlerts quando uma nova rodada iniciar
+   * Usado para garantir que mensagens de espera da rodada_0 sejam fechadas
+   */
+  private closeRoundZeroSweetAlerts(): void {
+    try {
+      console.log('🎯 Fechando SweetAlerts específicos da rodada_0...');
+      
+      // Fechar SweetAlerts com mensagens de espera da rodada_0
+      const waitingAlerts = document.querySelectorAll('.swal2-container');
+      if (waitingAlerts.length > 0) {
+        console.log(`🔍 Encontrados ${waitingAlerts.length} SweetAlerts para fechar`);
+        waitingAlerts.forEach((alert, index) => {
+          if (alert instanceof HTMLElement) {
+            const title = alert.querySelector('.swal2-title');
+            // Verificar se é um SweetAlert de espera da rodada_0
+            if (title && (
+              title.textContent?.includes('Aguardando') || 
+              title.textContent?.includes('Próxima Rodada') ||
+              title.textContent?.includes('Autoavaliação registrada')
+            )) {
+              console.log(`🗑️ Fechando SweetAlert da rodada_0: ${title.textContent}`);
+              alert.remove();
+            }
+          }
+        });
+      }
+      
+      // Também fechar via Swal.close() para garantir
+      Swal.close();
+      
+      console.log('✅ SweetAlerts da rodada_0 fechados com sucesso');
+    } catch (error) {
+      console.warn('⚠️ Erro ao fechar SweetAlerts da rodada_0:', error);
     }
   }
 
