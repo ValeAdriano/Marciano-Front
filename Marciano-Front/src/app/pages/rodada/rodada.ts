@@ -240,8 +240,13 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
       return false; // Não permitir drop se já votou
     }
     
-    // Verificar se o alvo já tem carta
-    return this.ensureBucket(alvoId).length === 0;
+    // CORREÇÃO: Permitir que o mesmo alvo receba múltiplas cartas
+    // Ou manter a restrição de apenas uma carta por alvo (comportamento original)
+    // return this.ensureBucket(alvoId).length === 0;
+    
+    // Para permitir múltiplas cartas por alvo, comentar a linha acima
+    // Para manter apenas uma carta por alvo, descomentar a linha acima
+    return true; // Permitir drop sempre (múltiplas cartas por alvo)
   };
 
   async onDropToTarget(event: CdkDragDrop<Carta[]>, alvo: Alvo) {
@@ -273,11 +278,13 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
       return;
     }
 
-    const bucket = this.ensureBucket(alvo.id);
-    if (bucket.length > 0) {
-      this.toastInfo('Este alvo já possui uma carta associada.');
-      return;
-    }
+    // CORREÇÃO: Permitir múltiplas cartas por alvo
+    // Comentado para permitir que o mesmo alvo receba várias cartas
+    // const bucket = this.ensureBucket(alvo.id);
+    // if (bucket.length > 0) {
+    //   this.toastInfo('Este alvo já possui uma carta associada.');
+    //   return;
+    // }
 
     const resumoHtml =
       `<div style="text-align:left">
@@ -310,19 +317,23 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
         return;
       }
 
-             const result = await this.api.sendVote({
-         roomCode: this.roomCode(),
-         fromParticipantId: currentParticipantId,
-         toParticipantId: alvo.id,
-         cardColor: card.cor.toLowerCase(),
-         cardDescription: card.texto,
-       });
+      const result = await this.api.sendVote({
+        roomCode: this.roomCode(),
+        fromParticipantId: currentParticipantId,
+        toParticipantId: alvo.id,
+        cardColor: card.cor.toLowerCase(),
+        cardDescription: card.texto,
+      });
 
       if (result.ok) {
-        // Sucesso - transferir carta
-        transferArrayItem(event.previousContainer.data, event.container.data, event.previousIndex, 0);
-        this.hand.set([...this.hand()]);
-        this.assigned[alvo.id] = [...this.ensureBucket(alvo.id)];
+        // CORREÇÃO: Criar uma cópia da carta para o alvo, mantendo a original na mão
+        const cardCopy = { ...card, id: `${card.id}_${alvo.id}_${Date.now()}` };
+        
+        // Adicionar a cópia da carta ao alvo (permitindo múltiplas cartas)
+        if (!this.assigned[alvo.id]) {
+          this.assigned[alvo.id] = [];
+        }
+        this.assigned[alvo.id].push(cardCopy);
 
         this.selectedCardId.set(null);
         this.draggingCardId.set(null);
@@ -373,7 +384,10 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
     const carta = bucket[idx];
     if (!carta) return;
 
-    this.hand.update(arr => [carta, ...arr]);
+    console.log(`🗑️ Removendo carta ${idx} do alvo ${alvoId}:`, carta.texto);
+
+    // CORREÇÃO: Como as cartas são estáticas, apenas remover do alvo
+    // Não é necessário adicionar de volta à mão, pois ela nunca saiu
     bucket.splice(idx, 1);
     this.assigned[alvoId] = [...bucket];
     this.swiper?.update();
@@ -645,7 +659,8 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
       return; // Sair do método para não executar o resto da lógica
     }
     
-    // Limpar o lastvote da rodada anterior quando mudar de status
+    // CORREÇÃO: Como as cartas são estáticas, não é necessário restaurar ou limpar
+    // Apenas limpar o estado de votação da rodada anterior
     const code = this.roomCode();
     const previousStatus = this._roomStatus()?.status;
     console.log('📝 Status anterior:', previousStatus, 'Status atual:', currentStatus);
@@ -658,6 +673,9 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
       
       // Também limpar no VoteStateService para compatibilidade
       this.voteState.clearVoteState(code, previousStatus);
+      
+      // CORREÇÃO: Limpar apenas as cartas atribuídas aos alvos, mas manter as cartas na mão
+      this.clearAssignedCardsOnly();
     }
     
     // Aguardar um pouco para garantir que o SweetAlert foi fechado
@@ -668,6 +686,9 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
         this.navigation.navigateToCorrectScreen(status);
       } else {
         console.log('✅ Já está na tela correta');
+        
+        // CORREÇÃO: Verificar se o usuário já votou na nova rodada e restaurar o estado visual
+        this.checkAndRestoreVoteState();
       }
     }, 100);
   }
@@ -720,13 +741,19 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
     
     if (!code) return;
 
+    console.log('🔍 Verificando estado de votação para rodada:', currentStatus);
+
     // Verificar se já votou nesta rodada
     if (this.voteState.hasVotedInCurrentRound(code, currentStatus)) {
+      console.log('✅ Usuário já votou nesta rodada, restaurando estado visual');
+      
       // Se já votou, mostrar mensagem e desabilitar interação
       this.showAlreadyVotedMessage();
       
       // Restaurar o estado visual (carta no alvo)
       this.restoreVoteVisualState(code, currentStatus);
+    } else {
+      console.log('❌ Usuário ainda não votou nesta rodada');
     }
   }
 
@@ -748,19 +775,48 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
     const voteData = this.voteState.getCurrentVoteData(roomCode, roundStatus);
     if (!voteData) return;
 
-    // Encontrar a carta que foi votada
-    const votedCard = this.hand().find(card => 
-      card.cor.toLowerCase() === voteData.cardColor && 
-      card.texto === voteData.cardDescription
-    );
+    console.log('🔄 Restaurando estado visual do voto:', voteData);
 
-    if (votedCard && voteData.targetId) {
-      // Remover a carta da mão
-      this.hand.update(hand => hand.filter(card => card.id !== votedCard.id));
-      
-      // Adicionar a carta ao alvo correto
-      this.assigned[voteData.targetId] = [votedCard];
+    if (voteData.targetId) {
+      // CORREÇÃO: Como as cartas são estáticas, criar uma cópia para o alvo
+      // A carta original permanece na mão do usuário
+      const votedCard = this.hand().find(card => 
+        card.cor.toLowerCase() === voteData.cardColor && 
+        card.texto === voteData.cardDescription
+      );
+
+      if (votedCard) {
+        console.log('🔄 Carta encontrada na mão, criando cópia para o alvo:', voteData.targetId);
+        
+        // Criar uma cópia da carta para o alvo
+        const cardCopy = { ...votedCard, id: `${votedCard.id}_${voteData.targetId}_restored` };
+        
+        // Adicionar a cópia da carta ao alvo correto (permitindo múltiplas cartas)
+        if (!this.assigned[voteData.targetId]) {
+          this.assigned[voteData.targetId] = [];
+        }
+        this.assigned[voteData.targetId].push(cardCopy);
+        
+        // Atualizar o swiper
+        this.swiper?.update();
+      }
     }
+  }
+
+  /**
+   * CORREÇÃO: Limpa apenas as cartas atribuídas aos alvos
+   * Mantém as cartas na mão do usuário (estáticas)
+   */
+  private clearAssignedCardsOnly(): void {
+    console.log('🧹 Limpando apenas cartas atribuídas aos alvos');
+    
+    // Limpar todas as cartas atribuídas aos alvos
+    for (const alvoId in this.assigned) {
+      this.assigned[alvoId] = [];
+    }
+    
+    // NÃO é necessário restaurar cartas na mão, pois elas são estáticas
+    console.log('✅ Cartas na mão mantidas (estáticas)');
   }
 
   private checkLastVote(): void {

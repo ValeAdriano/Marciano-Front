@@ -122,15 +122,18 @@
               <div class="font-semibold text-black truncate">{{ a.nome }}</div>
 
               <div class="mt-1">
-                <div *ngIf="assigned[a.id].length"
-                     class="mt-2 assigned-pill"
-                     [style.borderColor]="colorHex[assigned[a.id][0].cor]">
-                  <span class="pill-dot" [style.background]="colorHex[assigned[a.id][0].cor]"></span>
-                  <span class="text-black">{{ assigned[a.id][0].texto }}</span>
-                  <button type="button" class="pill-x text-gray-300" title="Remover"
-                          (click)="removerDoAlvo(a.id)">×</button>
+                <!-- CORREÇÃO: Exibir múltiplas cartas por alvo -->
+                <div *ngIf="assigned[a.id] && assigned[a.id].length > 0" class="space-y-2">
+                  <div *ngFor="let carta of assigned[a.id]; let i = index; trackBy: trackById"
+                       class="assigned-pill"
+                       [style.borderColor]="colorHex[carta.cor]">
+                    <span class="pill-dot" [style.background]="colorHex[carta.cor]"></span>
+                    <span class="text-black">{{ carta.texto }}</span>
+                    <button type="button" class="pill-x text-gray-300" title="Remover"
+                            (click)="removerDoAlvo(a.id, i)">×</button>
+                  </div>
                 </div>
-                <div *ngIf="!assigned[a.id].length" class="text-s text-gray-500">Solte aqui</div>
+                <div *ngIf="!assigned[a.id] || assigned[a.id].length === 0" class="text-s text-gray-500">Solte aqui</div>
               </div>
             </div>
           </div>
