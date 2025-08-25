@@ -31,10 +31,10 @@
           </div>
         </div>
         
-        <!-- Progresso da Votação -->
+        <!-- Progresso da Rodada -->
         <div class="mt-4" *ngIf="roomStatus()?.round_progress">
           <div class="flex justify-between text-xs mb-2">
-            <span class="text-blue-700">Progresso da Votação</span>
+            <span class="text-blue-700">Progresso da Rodada</span>
             <span class="text-gray-600">{{ roomStatus()?.round_progress?.current_votes ?? 0 }}/{{ roomStatus()?.round_progress?.expected_votes ?? 0 }}</span>
           </div>
           <div class="w-full bg-blue-200 rounded-full h-2">
@@ -198,16 +198,16 @@
             </div>
           </li>
 
-          <!-- Etapa 3: Rodadas de Votação -->
+          <!-- Etapa 3: Rodadas de Rodada -->
           <li class="flex items-start gap-3" [class]="roomStatus()?.status === 'rodada_1' || roomStatus()?.status === 'rodada_2' ? '' : 'opacity-70'">
             <span class="inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold"
                   [class]="roomStatus()?.status === 'rodada_1' || roomStatus()?.status === 'rodada_2' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'">
               3
             </span>
             <div>
-              <div class="font-medium text-gray-900">Votação</div>
+              <div class="font-medium text-gray-900">Rodada</div>
               <p class="text-sm text-gray-600">
-                {{ roomStatus()?.status === 'rodada_1' || roomStatus()?.status === 'rodada_2' ? 'Em andamento - Votação entre participantes.' : 'Aguardando.' }}
+                {{ roomStatus()?.status === 'rodada_1' || roomStatus()?.status === 'rodada_2' ? 'Em andamento - Rodada entre participantes.' : 'Aguardando.' }}
               </p>
             </div>
           </li>

@@ -308,8 +308,8 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   private handleVoteProgress(progress: number): void {
-    // Atualizar progresso da votação
-    console.log('Progresso da votação:', progress);
+    // Atualizar progresso da Rodada
+    console.log('Progresso da Rodada:', progress);
   }
 
   private handleRoundFinished(): void {
@@ -599,8 +599,8 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
     const statusMap: { [key: string]: string } = {
       'lobby': '🔄 Lobby',
       'rodada_0': '🎯 Rodada 0 - Autoavaliação',
-      'rodada_1': '🎯 Rodada 1 - Votação',
-      'rodada_2': '🎯 Rodada 2 - Votação',
+      'rodada_1': '🎯 Rodada 1 - Rodada',
+      'rodada_2': '🎯 Rodada 2 - Rodada',
       'finalizado': '🏁 Finalizado'
     };
     return statusMap[status] || status;

@@ -409,7 +409,7 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
     const status = this._roomStatus();
     if (!status) return 0;
     
-    // Só mostrar progresso se estiver em uma rodada de votação (rodada_1, rodada_2, etc.)
+    // Só mostrar progresso se estiver em uma rodada de Rodada (rodada_1, rodada_2, etc.)
     if (!status.status.startsWith('rodada_') || status.status === 'rodada_0') return 0;
     
     const progress = status.round_progress;
@@ -450,16 +450,16 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
     const statusMap: { [key: string]: string } = {
       'lobby': '🔄 Lobby',
       'rodada_0': '🎯 Rodada 0 - Autoavaliação',
-      'rodada_1': '🎯 Rodada 1 - Votação',
-      'rodada_2': '🎯 Rodada 2 - Votação',
-      'rodada_3': '🎯 Rodada 3 - Votação',
-      'rodada_4': '🎯 Rodada 4 - Votação',
-      'rodada_5': '🎯 Rodada 5 - Votação',
-      'rodada_6': '🎯 Rodada 6 - Votação',
-      'rodada_7': '🎯 Rodada 7 - Votação',
-      'rodada_8': '🎯 Rodada 8 - Votação',
-      'rodada_9': '🎯 Rodada 9 - Votação',
-      'rodada_10': '🎯 Rodada 10 - Votação',
+      'rodada_1': '🎯 Rodada 1 - Rodada',
+      'rodada_2': '🎯 Rodada 2 - Rodada',
+      'rodada_3': '🎯 Rodada 3 - Rodada',
+      'rodada_4': '🎯 Rodada 4 - Rodada',
+      'rodada_5': '🎯 Rodada 5 - Rodada',
+      'rodada_6': '🎯 Rodada 6 - Rodada',
+      'rodada_7': '🎯 Rodada 7 - Rodada',
+      'rodada_8': '🎯 Rodada 8 - Rodada',
+      'rodada_9': '🎯 Rodada 9 - Rodada',
+      'rodada_10': '🎯 Rodada 10 - Rodada',
       'finalizado': '🏁 Finalizado'
     };
     
@@ -469,7 +469,7 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
       if (rodadaNum === '0') {
         return '🎯 Rodada 0 - Autoavaliação';
       } else {
-        return `🎯 Rodada ${rodadaNum} - Votação`;
+        return `🎯 Rodada ${rodadaNum} - Rodada`;
       }
     }
     
@@ -572,6 +572,11 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
             console.log('📊 Processando vote:progress:', event.progress);
             this.handleVoteProgress(event.progress);
             break;
+          case 'round:started':
+            console.log('🎯 Processando round:started:', event.totalSeconds);
+            // Iniciar timer quando a rodada for iniciada
+            this.rodada.onRoundStarted(event.totalSeconds);
+            break;
           case 'round:finished':
             console.log('🏁 Processando round:finished');
             this.handleRoundFinished();
@@ -668,8 +673,8 @@ export class RodadaComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   private handleVoteProgress(progress: number): void {
-    // Atualizar progresso da votação
-    console.log('Progresso da votação:', progress);
+    // Atualizar progresso da Rodada
+    console.log('Progresso da Rodada:', progress);
   }
 
   private handleRoundFinished(): void {

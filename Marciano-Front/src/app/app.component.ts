@@ -33,7 +33,7 @@ export class AppComponent implements OnInit {
   private readonly voteStateService = inject(VoteStateService);
 
   ngOnInit(): void {
-    // Limpar estados de votação antigos ao inicializar o app
+    // Limpar estados de Rodada antigos ao inicializar o app
     this.voteStateService.cleanupOldVoteStates(24); // Limpar estados com mais de 24 horas
   }
 } 

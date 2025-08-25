@@ -123,7 +123,7 @@ export class RodadaApiService implements OnDestroy {
     }
   }
 
-  // ====== Participantes disponíveis para votação ======
+  // ====== Participantes disponíveis para Rodada ======
   async getAvailableParticipants(roomCode: string, participantId: string): Promise<ApiResponse<AvailableParticipants>> {
     try {
       const obs = this.http.get<AvailableParticipants>(

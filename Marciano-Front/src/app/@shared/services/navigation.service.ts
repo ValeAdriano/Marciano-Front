@@ -29,7 +29,7 @@ export class NavigationService {
         this.router.navigate(['/rodada-zero']);
       }
     }
-    // Se estiver em qualquer rodada de votação (rodada_1, rodada_2, etc.), ir para rodada
+    // Se estiver em qualquer rodada de Rodada (rodada_1, rodada_2, etc.), ir para rodada
     else if (currentStatus.startsWith('rodada_') && currentStatus !== 'rodada_0') {
       if (this.router.url !== '/rodada') {
         this.router.navigate(['/rodada']);

@@ -5,7 +5,7 @@
       <div class="text-center">
         <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">
           <span class="bg-clip-text text-transparent bg-[linear-gradient(to_right,_#2563eb,_#f97316,_#eab308,_#16a34a,_#ef4444,_#7c3aed)]">
-            Rodada {{ rodadaNumero() }} — Votação
+            Rodada {{ rodadaNumero() }} — Rodada
           </span>
         </h1>
         <p class="mt-2 text-gray-700">
@@ -13,7 +13,7 @@
           <span class="font-semibold text-emerald-300">Ativado</span>
         </p>
 
-        <!-- Status da Sala e Progresso da Votação -->
+        <!-- Status da Sala e Progresso da Rodada -->
         <div class="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200" *ngIf="roomStatus()">
           <div class="text-sm text-blue-800">
             <p><strong>Status:</strong> {{ getStatusDisplay(roomStatus()?.status) }}</p>
@@ -37,7 +37,7 @@
             
             <div class="mt-2" *ngIf="roomStatus()?.round_progress">
               <div class="flex justify-between text-xs mb-1">
-                <span>Progresso da Votação</span>
+                <span>Progresso da Rodada</span>
                 <span>{{ roomStatus()?.round_progress?.current_votes ?? 0 }}/{{ roomStatus()?.round_progress?.expected_votes ?? 0 }}</span>
               </div>
               <div class="w-full bg-blue-200 rounded-full h-2">

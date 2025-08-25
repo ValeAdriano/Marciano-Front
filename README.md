@@ -9,7 +9,7 @@ Projeto front-end em **Angular 20** com foco na criação de uma interface gamif
 - Disponibilizar telas e fluxos de navegação para:
   - **Home** (entrada do participante)
   - **Lobby** (lista de participantes conectados)
-  - **Rodada / Votação** (associação carta → alvo)
+  - **Rodada / Rodada** (associação carta → alvo)
   - **Resultados** (visualização agregada por cores)
 - Prover uma base de UI consistente, acessível e responsiva, pronta para futura integração com API/tempo real.
 - Manter código e estrutura alinhados ao ecossistema **Angular 20** (Standalone APIs, Signals, CLI).
@@ -19,7 +19,7 @@ Projeto front-end em **Angular 20** com foco na criação de uma interface gamif
 ## Escopo Funcional (UI)
 
 - **Fluxo sem papel de facilitador**: apenas o participante.
-- **Votação**: para cada **alvo**, é possível **associar uma carta**; não é permitido votar em si mesmo.
+- **Rodada**: para cada **alvo**, é possível **associar uma carta**; não é permitido votar em si mesmo.
 - **Resultados**: exibição agregada por **cores** das cartas (sem pontuações).
 
 > Observação: todas as interações são **mockadas**; os botões/links podem navegar entre rotas, mas não persistem dados.

@@ -60,14 +60,14 @@ export class VoteStateService {
   }
 
   /**
-   * Limpa o estado de votação (útil quando uma nova rodada começa)
+   * Limpa o estado de Rodada (útil quando uma nova rodada começa)
    */
   clearVoteState(roomCode: string, roundStatus: string): void {
     this.removeVoteState(roomCode, roundStatus);
   }
 
   /**
-   * Verifica se o estado de votação ainda é válido (não muito antigo)
+   * Verifica se o estado de Rodada ainda é válido (não muito antigo)
    */
   isVoteStateValid(roomCode: string, roundStatus: string, maxAgeHours: number = 24): boolean {
     const voteState = this.getVoteState(roomCode, roundStatus);
@@ -79,7 +79,7 @@ export class VoteStateService {
   }
 
   /**
-   * Obtém o estado de votação do localStorage
+   * Obtém o estado de Rodada do localStorage
    */
   private getVoteState(roomCode: string, roundStatus: string): VoteState | null {
     try {
@@ -97,32 +97,32 @@ export class VoteStateService {
 
       return voteState;
     } catch (error) {
-      console.warn('Erro ao carregar estado de votação:', error);
+      console.warn('Erro ao carregar estado de Rodada:', error);
       return null;
     }
   }
 
   /**
-   * Salva o estado de votação no localStorage
+   * Salva o estado de Rodada no localStorage
    */
   private saveVoteState(roomCode: string, roundStatus: string, voteState: VoteState): void {
     try {
       const key = this.getStorageKey(roomCode, roundStatus);
       localStorage.setItem(key, JSON.stringify(voteState));
     } catch (error) {
-      console.warn('Erro ao salvar estado de votação:', error);
+      console.warn('Erro ao salvar estado de Rodada:', error);
     }
   }
 
   /**
-   * Remove o estado de votação do localStorage
+   * Remove o estado de Rodada do localStorage
    */
   private removeVoteState(roomCode: string, roundStatus: string): void {
     try {
       const key = this.getStorageKey(roomCode, roundStatus);
       localStorage.removeItem(key);
     } catch (error) {
-      console.warn('Erro ao remover estado de votação:', error);
+      console.warn('Erro ao remover estado de Rodada:', error);
     }
   }
 
@@ -136,7 +136,7 @@ export class VoteStateService {
   }
 
   /**
-   * Limpa todos os estados de votação antigos (útil para limpeza periódica)
+   * Limpa todos os estados de Rodada antigos (útil para limpeza periódica)
    */
   cleanupOldVoteStates(maxAgeHours: number = 24): void {
     try {
@@ -161,7 +161,7 @@ export class VoteStateService {
         }
       });
     } catch (error) {
-      console.warn('Erro ao limpar estados de votação antigos:', error);
+      console.warn('Erro ao limpar estados de Rodada antigos:', error);
     }
   }
 }
