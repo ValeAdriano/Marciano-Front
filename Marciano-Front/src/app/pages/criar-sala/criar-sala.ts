@@ -422,7 +422,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     if (status === 'finalizado') return '🏁 Finalizado';
     if (status.startsWith('rodada_')) {
       const roundNum = parseInt(status.replace('rodada_', ''), 10);
-      return roundNum === 0 ? '🎯 Rodada 0 - Autoavaliação' : `🎯 Rodada ${roundNum} - Votação`;
+      return roundNum === 0 ? '🎯 Rodada 0 - Autoavaliação' : `🎯 Rodada ${roundNum}`;
     }
     return status;
   }
@@ -494,7 +494,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
 
   getRoundDisplayName(roundNumber: number): string {
     if (roundNumber === 0) return '🎯 Rodada 0 - Autoavaliação';
-    return `🗳️ Rodada ${roundNumber} - Votação`;
+    return `🗳️ Rodada ${roundNumber}`;
   }
 
   getRoundProgressColor(percentage: number): string {
@@ -680,7 +680,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
   forceFinishRound(roomCode: string): void {
     Swal.fire({
       title: 'Finalizar Rodada Forçadamente?',
-      text: 'Esta ação irá finalizar a rodada atual mesmo que nem todos tenham votado.',
+      text: 'Esta ação irá finalizar a rodada atual mesmo que nem todos tenham enviado suas cartas.',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Sim, Finalizar',
