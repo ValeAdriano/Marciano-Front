@@ -888,17 +888,17 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     if (this.resultsChart) this.resultsChart.destroy();
 
     const results = this.currentResults()!;
-    const aggregated = this.aggregateResultsByColor(results);
+    const aggregated = this.aggregateResultsByPlanet(results);
 
     this.resultsChart = new Chart(ctx, {
       type: 'bar',
       data: {
-        labels: aggregated.map(r => this.getPlanetName(r.color)),
+        labels: aggregated.map(r => r.planet),
         datasets: [{
           label: 'Total de Votos',
           data: aggregated.map(r => r.totalCount),
-          backgroundColor: ['#8B5CF6', '#EAB308', '#22C55E', '#EF4444', '#F97316', '#3B82F6'],
-          borderColor: ['#7C3AED', '#CA8A04', '#16A34A', '#DC2626', '#EA580C', '#2563EB'],
+          backgroundColor: aggregated.map(r => this.getColorFromPlanet(r.planet)),
+          borderColor: aggregated.map(r => this.getColorFromPlanet(r.planet)),
           borderWidth: 2
         }]
       },
@@ -908,7 +908,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
         plugins: {
           title: {
             display: true,
-            text: `Resumo de Votos por Cor - ${results.room_title}`,
+            text: `Resumo de Votos por Planeta - ${results.room_title}`,
             font: { size: 16, weight: 'bold' }
           },
           legend: { display: false }
@@ -920,17 +920,23 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
-  private aggregateResultsByColor(results: RoomResults): Array<{ color: string; totalCount: number }> {
-    const colorMap = new Map<string, number>();
-    const allPlanets = ['Roxo', 'Amarelo', 'Verde', 'Vermelho', 'Laranja', 'Azul'];
-    allPlanets.forEach(c => colorMap.set(c, 0));
+  private aggregateResultsByPlanet(results: RoomResults): Array<{ planet: string; totalCount: number }> {
+    const planetMap = new Map<string, number>();
+    const allPlanets = this.getAllPlanets();
+    allPlanets.forEach(p => planetMap.set(p, 0));
+    
     results.participants_results.forEach(p => {
       p.results_by_color.forEach(cr => {
-        colorMap.set(cr.color, (colorMap.get(cr.color) || 0) + cr.count);
+        // Mapear a cor para o nome do planeta
+        const planetName = this.getPlanetNameFromColor(cr.color);
+        if (planetName && planetMap.has(planetName)) {
+          planetMap.set(planetName, (planetMap.get(planetName) || 0) + cr.count);
+        }
       });
     });
-    return Array.from(colorMap.entries())
-      .map(([color, totalCount]) => ({ color, totalCount }))
+    
+    return Array.from(planetMap.entries())
+      .map(([planet, totalCount]) => ({ planet, totalCount }))
       .sort((a, b) => b.totalCount - a.totalCount);
   }
 
@@ -949,35 +955,8 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
-    Swal.fire({
-      title: 'Gerando Relatório PDF...',
-      text: 'Aguarde enquanto preparamos seu relatório completo.',
-      allowOutsideClick: false,
-      didOpen: () => Swal.showLoading()
-    });
-
-    try {
-      this.captureChartAsImage()
-        .then((chartImg) => {
-          this.generatePDFWithChart(results, chartImg);
-          Swal.close();
-        })
-        .catch((error) => {
-          console.error('Erro ao capturar gráfico:', error);
-          this.generatePDFWithChart(results, null);
-          Swal.close();
-        });
-    } catch (error) {
-      console.error('Erro ao gerar PDF:', error);
-      Swal.close();
-      Swal.fire({
-        icon: 'error',
-        title: 'Erro ao Gerar PDF',
-        text: 'Não foi possível gerar o relatório em PDF. Tente novamente.',
-        confirmButtonText: 'OK',
-        confirmButtonColor: '#d33'
-      });
-    }
+    // Usar a função que captura a modal completa como PDF
+    this.downloadModalAsPdf();
   }
 
   private async captureChartAsImage(): Promise<string | null> {
@@ -1010,7 +989,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       const pdf = new jsPDF('p', 'mm', 'a4');
       pdf.setFont('helvetica');
 
-      // Cores das cores
+      // Cores do tema do PDF
       const primary: [number, number, number] = [59, 130, 246];    // Azul
       const secondary: [number, number, number] = [107, 114, 128]; // Cinza
       const accent: [number, number, number] = [34, 197, 94];      // Verde
@@ -1120,25 +1099,25 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     let y = startY;
     pdf.setFontSize(18);
     pdf.setTextColor(primary[0], primary[1], primary[2]);
-    pdf.text('RESUMO DE VOTOS POR COR', 20, y);
+    pdf.text('RESUMO DE VOTOS POR PLANETA', 20, y);
     y += 15;
 
     // Caixa de fundo para o resumo
-    const aggregated = this.aggregateResultsByColor(results);
+    const aggregated = this.aggregateResultsByPlanet(results);
     const boxHeight = (aggregated.length * 8) + 10;
     pdf.setFillColor(lightBlue[0], lightBlue[1], lightBlue[2]);
     pdf.rect(15, y - 5, 180, boxHeight, 'F');
     pdf.setDrawColor(primary[0], primary[1], primary[2]);
     pdf.rect(15, y - 5, 180, boxHeight, 'S');
 
-    aggregated.forEach((c) => {
+    aggregated.forEach((p) => {
       if (y > 250) { pdf.addPage(); y = 20; }
       pdf.setFontSize(12);
       pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
-      pdf.text(`${this.getPlanetName(c.color)}:`, 25, y);
+      pdf.text(`${this.getPlanetName(p.planet)}:`, 25, y);
       pdf.setFontSize(14);
       pdf.setTextColor(accent[0], accent[1], accent[2]);
-      pdf.text(`${c.totalCount} votos`, 120, y);
+      pdf.text(`${p.totalCount} votos`, 120, y);
       y += 8;
     });
   }
@@ -1154,18 +1133,18 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     let y = startY;
     pdf.setFontSize(18);
     pdf.setTextColor(primary[0], primary[1], primary[2]);
-    pdf.text('RESUMO DE VOTOS POR COR', 20, y);
+    pdf.text('RESUMO DE VOTOS POR PLANETA', 20, y);
     y += 15;
 
-    const aggregated = this.aggregateResultsByColor(results);
-    aggregated.forEach((c) => {
+    const aggregated = this.aggregateResultsByPlanet(results);
+    aggregated.forEach((p) => {
       if (y > 250) { pdf.addPage(); y = 20; }
       pdf.setFontSize(12);
       pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
-      pdf.text(`${this.getPlanetName(c.color)}:`, 25, y);
+      pdf.text(`${this.getPlanetName(p.planet)}:`, 25, y);
       pdf.setFontSize(14);
       pdf.setTextColor(accent[0], accent[1], accent[2]);
-      pdf.text(`${c.totalCount} votos`, 120, y);
+      pdf.text(`${p.totalCount} votos`, 120, y);
       y += 8;
     });
   }
@@ -1207,7 +1186,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       pdf.setFontSize(12);
       pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
       const envelopeColor = this.getColorNameFromHex(p.envelope_choice);
-      pdf.text(`Cor Escolhida: ${envelopeColor}`, 25, y);
+      pdf.text(`Planeta Escolhido: ${envelopeColor}`, 25, y);
       pdf.text(`Total de Votos: ${p.total_votes}`, 25, y + 6);
       y += 15;
 
@@ -1273,10 +1252,10 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     pdf.text(`Total de Participantes: ${results.total_participants} pessoas`, 20, 65);
     pdf.text(`Total de Votos: ${totalVotes} votos`, 20, 72);
 
-    const mostVoted = this.aggregateResultsByColor(results)[0];
+    const mostVoted = this.aggregateResultsByPlanet(results)[0];
     if (mostVoted) {
       pdf.setTextColor(accent[0], accent[1], accent[2]);
-      pdf.text(`Cor Mais Votada: ${mostVoted.color} (${mostVoted.totalCount} votos)`, 110, 65);
+      pdf.text(`Planeta Mais Votado: ${mostVoted.planet} (${mostVoted.totalCount} votos)`, 110, 65);
     }
 
     // Caixa com distribuição de votos
@@ -1287,23 +1266,23 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
 
     pdf.setFontSize(16);
     pdf.setTextColor(primary[0], primary[1], primary[2]);
-    pdf.text('DISTRIBUICAO DE VOTOS POR COR', 20, 105);
+    pdf.text('DISTRIBUICAO DE VOTOS POR PLANETA', 20, 105);
 
     let y = 125;
-    const aggregated = this.aggregateResultsByColor(results);
-    aggregated.forEach((c, index) => {
-      const pct = totalVotes > 0 ? ((c.totalCount / totalVotes) * 100).toFixed(1) : '0.0';
+    const aggregated = this.aggregateResultsByPlanet(results);
+    aggregated.forEach((p, index) => {
+      const pct = totalVotes > 0 ? ((p.totalCount / totalVotes) * 100).toFixed(1) : '0.0';
       
       // Barra de progresso visual simples
-      const barWidth = (c.totalCount / (mostVoted?.totalCount || 1)) * 120;
+      const barWidth = (p.totalCount / (mostVoted?.totalCount || 1)) * 120;
       pdf.setFillColor(accent[0], accent[1], accent[2]);
       pdf.rect(25, y - 3, barWidth, 6, 'F');
       
       pdf.setFontSize(12);
       pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
-      pdf.text(`${this.getPlanetName(c.color)}:`, 25, y + 8);
+      pdf.text(`${this.getPlanetName(p.planet)}:`, 25, y + 8);
       pdf.setTextColor(accent[0], accent[1], accent[2]);
-      pdf.text(`${c.totalCount} votos (${pct}%)`, 80, y + 8);
+      pdf.text(`${p.totalCount} votos (${pct}%)`, 80, y + 8);
       y += 18;
     });
 
@@ -1356,13 +1335,15 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       // Importação dinâmica do html2canvas
       const html2canvas = await import('html2canvas');
       const canvas = await (html2canvas as any).default(el, {
-        scale: 2,
+        scale: 3, // Aumentei a escala para melhor qualidade
         backgroundColor: '#ffffff',
         useCORS: true,
         allowTaint: true,
         logging: false,
         foreignObjectRendering: false,
         removeContainer: true,
+        width: el.scrollWidth, // Captura a largura total
+        height: el.scrollHeight, // Captura a altura total
         onclone: (doc: Document) => {
           const target = doc.querySelector('[data-capture="true"]') as HTMLElement | null;
           if (target) {
@@ -1371,6 +1352,8 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
             target.style.position = 'relative';
             target.style.transform = 'none';
             target.style.filter = 'none';
+            target.style.width = '100%';
+            target.style.height = 'auto';
           }
         }
       });
@@ -1388,12 +1371,14 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
         const pdf = new jsPDF('p', 'mm', 'a4');
         const pageW = pdf.internal.pageSize.getWidth();
         const pageH = pdf.internal.pageSize.getHeight();
-        const margin = 10;
+        const margin = 15; // Aumentei a margem para melhor aparência
         const renderW = pageW - margin * 2;
         const renderH = renderW * (img.height / img.width);
 
         if (renderH <= pageH - margin * 2) {
-          pdf.addImage(imgDataUrl, 'PNG', margin, margin, renderW, renderH);
+          // Se couber em uma página, centralizar
+          const yOffset = (pageH - renderH) / 2;
+          pdf.addImage(imgDataUrl, 'PNG', margin, yOffset, renderW, renderH);
           pdf.save(fileName);
           resolve();
           return;
@@ -1419,7 +1404,10 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
           const sliceRenderH = (h / img.width) * renderW;
 
           if (!first) pdf.addPage();
-          pdf.addImage(sliceData, 'PNG', margin, margin, renderW, sliceRenderH);
+          
+          // Centralizar horizontalmente se a fatia for menor que a página
+          const xOffset = (pageW - renderW) / 2;
+          pdf.addImage(sliceData, 'PNG', xOffset, margin, renderW, sliceRenderH);
 
           first = false;
           y += h;
@@ -1506,36 +1494,38 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     Swal.fire({
-      title: 'Gerando PDF...',
-      text: 'Capturando a modal completa e montando o PDF.',
+      title: 'Gerando Relatório PDF...',
+      text: 'Capturando a modal completa e convertendo para PDF.',
       allowOutsideClick: false,
       didOpen: () => Swal.showLoading()
     });
 
+    // Aguardar um pouco mais para garantir que o layout está estável
     setTimeout(async () => {
       try {
         const imgData = await this.elementToPngDataUrl(modal);
-        const fileName = `resultados_${results.room_code}_${new Date().toISOString().split('T')[0]}.pdf`;
+        const fileName = `relatorio_resultados_${results.room_code}_${new Date().toISOString().split('T')[0]}.pdf`;
         await this.pngDataUrlToMultipagePdf(imgData, fileName);
         Swal.close();
         Swal.fire({
           icon: 'success',
-          title: 'PDF Baixado!',
-          text: 'A modal foi capturada e convertida em PDF.',
+          title: 'Relatório PDF Gerado!',
+          text: 'O relatório completo foi capturado da modal e convertido em PDF.',
           confirmButtonText: 'OK',
           confirmButtonColor: '#28a745'
         });
       } catch (e) {
         console.error('Erro ao capturar modal (PDF):', e);
+        Swal.close();
         Swal.fire({
           icon: 'error',
           title: 'Erro ao Gerar PDF',
-          text: 'Não foi possível capturar a modal para PDF.',
+          text: 'Não foi possível capturar a modal para PDF. Tente novamente.',
           confirmButtonText: 'OK',
           confirmButtonColor: '#d33'
         });
       }
-    }, 300);
+    }, 500); // Aumentei o tempo de espera para garantir estabilidade
   }
 
   // -------------------- Utilitários --------------------
@@ -1583,36 +1573,87 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   getColorNameFromHex(hex: string): string {
-    const map: Record<string, string> = {
-      '#8B5CF6': 'Roxo',
-      '#EAB308': 'Amarelo',
-      '#22C55E': 'Verde',
-      '#EF4444': 'Vermelho',
-      '#F97316': 'Laranja',
-      '#3B82F6': 'Azul'
-    };
-    return map[hex] || hex;
+    return this.getPlanetNameFromColor(hex);
   }
 
+  // Função para obter o nome do planeta a partir da cor (versão melhorada)
   getPlanetName(color: string): string {
-    // Na tela de criar sala, mostrar apenas o nome da cor
-    return color;
+    return this.getPlanetNameFromColor(color);
   }
 
   getColorHex(colorName: string): string {
-    const map: Record<string, string> = {
-      'Roxo': '#8B5CF6',
-      'Amarelo': '#EAB308',
-      'Verde': '#22C55E',
-      'Vermelho': '#EF4444',
-      'Laranja': '#F97316',
-      'Azul': '#3B82F6'
-    };
-    return map[colorName] || '#6B7280';
+    return this.getColorFromPlanet(colorName);
   }
 
-  getAggregatedResults(results: RoomResults): Array<{ color: string; totalCount: number }> {
-    return this.aggregateResultsByColor(results);
+  getAggregatedResults(results: RoomResults): Array<{ planet: string; totalCount: number }> {
+    return this.aggregateResultsByPlanet(results);
+  }
+
+  // Função para obter o nome do planeta a partir da cor
+  getPlanetNameFromColor(color: string): string {
+    const colorMap: Record<string, string> = {
+      'roxo': 'Lua',
+      'amarelo': 'Mercúrio',
+      'verde': 'Vênus',
+      'vermelho': 'Marte',
+      'laranja': 'Jupiter',
+      'azul': 'Saturno',
+      // Adicionar suporte para hex codes também
+      '#8B5CF6': 'Lua',
+      '#EAB308': 'Mercúrio',
+      '#22C55E': 'Vênus',
+      '#EF4444': 'Marte',
+      '#F97316': 'Jupiter',
+      '#3B82F6': 'Saturno',
+      // Adicionar suporte para cores em inglês também
+      'purple': 'Lua',
+      'yellow': 'Mercúrio',
+      'green': 'Vênus',
+      'red': 'Marte',
+      'orange': 'Jupiter',
+      'blue': 'Saturno'
+    };
+    
+    // Normalizar a cor para comparação
+    const normalizedColor = color.toLowerCase().trim();
+    return colorMap[normalizedColor] || color;
+  }
+
+  // Função para obter a cor a partir do nome do planeta
+  getColorFromPlanet(planet: string): string {
+    const planetMap: Record<string, string> = {
+      'Lua': '#8B5CF6',
+      'Mercúrio': '#EAB308',
+      'Vênus': '#22C55E',
+      'Marte': '#EF4444',
+      'Jupiter': '#F97316',
+      'Saturno': '#3B82F6'
+    };
+    return planetMap[planet] || '#6B7280';
+  }
+
+  // Função para calcular votos por planeta para um participante específico
+  getParticipantPlanetVotes(participant: any, planet: string): number {
+    let count = 0;
+    participant.results_by_color.forEach((cr: any) => {
+      if (this.getPlanetNameFromColor(cr.color) === planet) {
+        count += cr.count;
+      }
+    });
+    return count;
+  }
+
+  // Função para calcular a porcentagem de votos por planeta para um participante
+  getParticipantPlanetPercentage(participant: any, planet: string): number {
+    const planetVotes = this.getParticipantPlanetVotes(participant, planet);
+    const totalVotes = participant.total_votes;
+    if (totalVotes === 0) return 0;
+    return Math.round((planetVotes / totalVotes) * 100);
+  }
+
+  // Função para obter todos os planetas em ordem
+  getAllPlanets(): string[] {
+    return ['Lua', 'Mercúrio', 'Vênus', 'Marte', 'Jupiter', 'Saturno'];
   }
 
   getCurrentDate(): string {
