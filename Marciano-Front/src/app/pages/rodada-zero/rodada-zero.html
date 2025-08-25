@@ -129,7 +129,7 @@
                      [style.borderColor]="colorHex[assigned[a.id][0].cor]">
                   <span class="pill-dot" [style.background]="colorHex[assigned[a.id][0].cor]"></span>
                   <span class="text-black">{{ assigned[a.id][0].texto }}</span>
-                  <span class="ml-2 text-xs text-gray-500">🪐 {{ assigned[a.id][0].planeta }}</span>
+                  <span class="ml-2 text-xs text-gray-500">{{ assigned[a.id][0].cor }}</span>
                   <button type="button" class="pill-x text-gray-300" title="Remover"
                           (click)="removerDoAlvo(a.id)">×</button>
                 </div>
@@ -168,7 +168,7 @@
                 <div class="carta-conteudo">
                   <span class="ponto" [style.background]="colorHex[c.cor]"></span>
                   <span class="texto">{{ c.texto }}</span>
-                  <span class="planeta-badge">🪐 {{ c.planeta }}</span>
+                  <span class="cor-badge">{{ c.cor }}</span>
                 </div>
               </div>
 
@@ -177,7 +177,7 @@
                   <div class="carta-conteudo">
                     <span class="ponto" [style.background]="colorHex[c.cor]"></span>
                     <span class="texto">{{ c.texto }}</span>
-                    <span class="planeta-badge">🪐 {{ c.planeta }}</span>
+                    <span class="cor-badge">{{ c.cor }}</span>
                   </div>
                 </div>
               </ng-template>

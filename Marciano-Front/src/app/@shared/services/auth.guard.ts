@@ -1,15 +1,15 @@
 import { Injectable, inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { HomeService } from '../../pages/home/home.service';
+import { AuthService } from './auth.service';
 
 /**
- * Guarda de rota que verifica se o usuário está completamente cadastrado
+ * Guarda de rota que verifica se o usuário está autenticado
  * antes de permitir acesso às páginas protegidas.
  * 
- * Verifica se existe no localStorage:
- * - Nome do participante
- * - Cor do envelope escolhida
- * - Código da sala
+ * Verifica:
+ * 1. Se o usuário está logado (credenciais válidas)
+ * 2. Se a sessão está completa com todos os dados necessários
  * 
  * Se algum desses dados estiver faltando, redireciona para a página inicial.
  */
@@ -19,9 +19,22 @@ import { HomeService } from '../../pages/home/home.service';
 export class AuthGuard {
   private readonly router = inject(Router);
   private readonly homeService = inject(HomeService);
+  private readonly authService = inject(AuthService);
 
-  canActivate(): boolean {
-    // Verifica se a sessão está completa com todos os dados necessários
+  async canActivate(): Promise<boolean> {
+    // Primeiro verifica se o usuário está logado
+    if (!this.authService.isAuthenticated()) {
+      // Usuário não está logado, mostra modal de login
+      const loginSuccess = await this.authService.showLoginModal();
+      
+      if (!loginSuccess) {
+        // Login falhou ou foi cancelado, redireciona para home
+        this.router.navigate(['/']);
+        return false;
+      }
+    }
+
+    // Agora verifica se a sessão está completa com todos os dados necessários
     if (!this.homeService.isSessionComplete()) {
       // Usuário não está completamente cadastrado, redireciona para home
       this.router.navigate(['/']);
@@ -33,7 +46,7 @@ export class AuthGuard {
 }
 
 // Função factory para usar com as rotas
-export const authGuard: CanActivateFn = (route, state) => {
+export const authGuard: CanActivateFn = async (route, state) => {
   const guard = inject(AuthGuard);
-  return guard.canActivate();
+  return await guard.canActivate();
 };

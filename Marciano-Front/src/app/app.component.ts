@@ -29,7 +29,7 @@ import { VoteStateService } from './@shared/services/vote-state.service';
   `]
 })
 export class AppComponent implements OnInit {
-  title = 'Marciano Front';
+  title = 'Qualidades Anímicas';
   private readonly voteStateService = inject(VoteStateService);
 
   ngOnInit(): void {

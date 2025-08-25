@@ -10,7 +10,11 @@ import { authGuard } from './@shared/services/auth.guard';
 
 export const routes: Routes = [
   { path: '', component: HomeComponent },
-  { path: 'criar-sala', component: CriarSalaComponent },
+  { 
+    path: 'criar-sala', 
+    component: CriarSalaComponent,
+    canActivate: [authGuard]
+  },
   { 
     path: 'lobby', 
     component: LobbyComponent, 

@@ -28,7 +28,6 @@ export type Card = {
   id: string;
   name: string;
   color: string;
-  planeta?: string;
 };
 
 export type ApiResponse<T> = { ok: true; data: T } | { ok: false, error: string };

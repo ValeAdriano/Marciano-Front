@@ -14,11 +14,21 @@
            class="text-slate-700 hover:text-sky-700 transition-colors duration-200">
           Entrar
         </a>
-        <a routerLink="/criar-sala"
+        
+        <!-- Botão Criar Sala - Só aparece se autenticado -->
+        <a *ngIf="isAuthenticated"
+           routerLink="/criar-sala"
            routerLinkActive="text-sky-700"
            class="inline-flex items-center rounded-md bg-sky-600 text-white px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-sky-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition-colors duration-200">
           Criar sala
         </a>
+        
+        <!-- Botão Login - Só aparece se NÃO autenticado -->
+        <button *ngIf="!isAuthenticated"
+          (click)="showLogin()"
+          class="inline-flex items-center rounded-md bg-gray-600 text-white px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 transition-colors duration-200">
+          🔐 Login
+        </button>
       </nav>
 
       <!-- Botão Mobile Menu -->
@@ -58,12 +68,22 @@
            class="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-sky-700 hover:bg-sky-50 transition-colors duration-200">
           Entrar
         </a>
-        <a routerLink="/criar-sala"
+        
+        <!-- Botão Criar Sala Mobile - Só aparece se autenticado -->
+        <a *ngIf="isAuthenticated"
+           routerLink="/criar-sala"
            routerLinkActive="bg-sky-50 text-sky-700"
            (click)="onLinkClick()"
            class="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-sky-700 hover:bg-sky-50 transition-colors duration-200">
           Criar sala
         </a>
+        
+        <!-- Botão Login Mobile - Só aparece se NÃO autenticado -->
+        <button *ngIf="!isAuthenticated"
+          (click)="showLogin(); onLinkClick()"
+          class="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-sky-700 hover:bg-sky-50 transition-colors duration-200">
+          🔐 Login
+        </button>
       </div>
     </div>
   </div>

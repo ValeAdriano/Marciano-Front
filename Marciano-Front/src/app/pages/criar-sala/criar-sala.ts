@@ -908,7 +908,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
         plugins: {
           title: {
             display: true,
-            text: `Resumo de Votos por Planeta - ${results.room_title}`,
+            text: `Resumo de Votos por Cor - ${results.room_title}`,
             font: { size: 16, weight: 'bold' }
           },
           legend: { display: false }
@@ -1010,13 +1010,13 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       const pdf = new jsPDF('p', 'mm', 'a4');
       pdf.setFont('helvetica');
 
-      // Cores dos planetas
+      // Cores das cores
       const primary: [number, number, number] = [59, 130, 246];    // Azul
       const secondary: [number, number, number] = [107, 114, 128]; // Cinza
       const accent: [number, number, number] = [34, 197, 94];      // Verde
       const lightBlue: [number, number, number] = [219, 234, 254]; // Azul claro
 
-      // Cabeçalho com fundo do planeta
+      // Cabeçalho com fundo da cor
       pdf.setFillColor(primary[0], primary[1], primary[2]);
       pdf.rect(0, 0, 210, 40, 'F');
       
@@ -1120,7 +1120,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     let y = startY;
     pdf.setFontSize(18);
     pdf.setTextColor(primary[0], primary[1], primary[2]);
-    pdf.text('RESUMO DE VOTOS POR PLANETA', 20, y);
+    pdf.text('RESUMO DE VOTOS POR COR', 20, y);
     y += 15;
 
     // Caixa de fundo para o resumo
@@ -1154,7 +1154,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     let y = startY;
     pdf.setFontSize(18);
     pdf.setTextColor(primary[0], primary[1], primary[2]);
-    pdf.text('RESUMO DE VOTOS POR PLANETA', 20, y);
+    pdf.text('RESUMO DE VOTOS POR COR', 20, y);
     y += 15;
 
     const aggregated = this.aggregateResultsByColor(results);
@@ -1207,7 +1207,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
       pdf.setFontSize(12);
       pdf.setTextColor(secondary[0], secondary[1], secondary[2]);
       const envelopeColor = this.getColorNameFromHex(p.envelope_choice);
-      pdf.text(`Planeta Escolhido: ${this.getPlanetName(envelopeColor)}`, 25, y);
+      pdf.text(`Cor Escolhida: ${envelopeColor}`, 25, y);
       pdf.text(`Total de Votos: ${p.total_votes}`, 25, y + 6);
       y += 15;
 
@@ -1220,7 +1220,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
         p.detailed_votes.slice(0, 3).forEach((v) => { // Mostra apenas 3 votos por participante para não ocupar muito espaço
           if (y > 250) { pdf.addPage(); y = 20; }
           pdf.setFontSize(10);
-          pdf.text(`- ${this.cleanText(v.from_name)} -> ${this.getPlanetName(v.card_color)}`, 30, y); 
+          pdf.text(`- ${this.cleanText(v.from_name)} -> ${v.card_color}`, 30, y); 
           y += 5;
 
           const desc = this.cleanText(v.card_description);
@@ -1276,7 +1276,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
     const mostVoted = this.aggregateResultsByColor(results)[0];
     if (mostVoted) {
       pdf.setTextColor(accent[0], accent[1], accent[2]);
-      pdf.text(`Planeta Mais Votado: ${mostVoted.color} (${mostVoted.totalCount} votos)`, 110, 65);
+      pdf.text(`Cor Mais Votada: ${mostVoted.color} (${mostVoted.totalCount} votos)`, 110, 65);
     }
 
     // Caixa com distribuição de votos
@@ -1287,7 +1287,7 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
 
     pdf.setFontSize(16);
     pdf.setTextColor(primary[0], primary[1], primary[2]);
-    pdf.text('DISTRIBUICAO DE VOTOS POR PLANETA', 20, 105);
+    pdf.text('DISTRIBUICAO DE VOTOS POR COR', 20, 105);
 
     let y = 125;
     const aggregated = this.aggregateResultsByColor(results);
@@ -1595,15 +1595,8 @@ export class CriarSalaComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   getPlanetName(color: string): string {
-    const map: Record<string, string> = {
-      'Roxo': 'Lua',
-      'Amarelo': 'Mercúrio',
-      'Verde': 'Vênus',
-      'Vermelho': 'Marte',
-      'Laranja': 'Júpiter',
-      'Azul': 'Saturno'
-    };
-    return map[color] || color;
+    // Na tela de criar sala, mostrar apenas o nome da cor
+    return color;
   }
 
   getColorHex(colorName: string): string {

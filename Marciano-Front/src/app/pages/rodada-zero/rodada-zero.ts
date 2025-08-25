@@ -22,7 +22,7 @@ import { NavigationService } from '../../@shared/services/navigation.service';
 import { VoteStateService } from '../../@shared/services/vote-state.service';
 
 type Cor = 'Laranja' | 'Verde' | 'Amarelo' | 'Azul' | 'Vermelho' | 'Roxo';
-type Carta = { id: string; cor: Cor; texto: string; planeta?: string; };
+type Carta = { id: string; cor: Cor; texto: string; };
 
 type Alvo = {
   id: string;
@@ -66,18 +66,18 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
 
   // Mão do usuário
   hand: WritableSignal<Carta[]> = signal<Carta[]>([
-    { id: 'lar-1', cor: 'Laranja',  texto: 'Tem pensamento estratégico e visão do todo', planeta: 'Marte' },
-    { id: 'lar-2', cor: 'Laranja',  texto: 'É bom em planejar e organizar', planeta: 'Marte' },
-    { id: 'ver-1', cor: 'Verde',    texto: 'Preserva a harmonia no ambiente de trabalho', planeta: 'Vênus' },
-    { id: 'ver-2', cor: 'Verde',    texto: 'Dá grande atenção ao bem estar da pessoa', planeta: 'Vênus' },
-    { id: 'ama-1', cor: 'Amarelo',  texto: 'É ágil, flexível e aberto a mudanças', planeta: 'Mercúrio' },
-    { id: 'ama-2', cor: 'Amarelo',  texto: 'Traz as novas ideias e ajuda a empresa a inovar', planeta: 'Mercúrio' },
-    { id: 'az-1',  cor: 'Azul',     texto: 'Ajuda a empresa e as equipes a manter o foco', planeta: 'Saturno' },
-    { id: 'az-2',  cor: 'Azul',     texto: 'Alinha os temas com profundidade e senso crítico', planeta: 'Saturno' },
-    { id: 'vermelho-1', cor: 'Vermelho', texto: 'Toma a iniciativa e faz acontecer', planeta: 'Júpiter' },
-    { id: 'vermelho-2', cor: 'Vermelho', texto: 'É prático e focado na ação e nos resultados', planeta: 'Júpiter' },
-    { id: 'roxo-1', cor: 'Roxo',    texto: 'Avalia o passado para melhorar as suas práticas', planeta: 'Urano' },
-    { id: 'roxo-2', cor: 'Roxo',    texto: 'Acompanha e monitora ações e resultados', planeta: 'Urano' },
+    { id: 'lar-1', cor: 'Laranja',  texto: 'Tem pensamento estratégico e visão do todo' },
+    { id: 'lar-2', cor: 'Laranja',  texto: 'É bom em planejar e organizar' },
+    { id: 'ver-1', cor: 'Verde',    texto: 'Preserva a harmonia no ambiente de trabalho' },
+    { id: 'ver-2', cor: 'Verde',    texto: 'Dá grande atenção ao bem estar da pessoa' },
+    { id: 'ama-1', cor: 'Amarelo',  texto: 'É ágil, flexível e aberto a mudanças' },
+    { id: 'ama-2', cor: 'Amarelo',  texto: 'Traz as novas ideias e ajuda a empresa a inovar' },
+    { id: 'rox-1', cor: 'Roxo',    texto: 'É criativo e tem intuição aguçada' },
+    { id: 'rox-2', cor: 'Roxo',    texto: 'Consegue ver além do óbvio' },
+    { id: 'ver-3', cor: 'Vermelho', texto: 'É determinado e focado em resultados' },
+    { id: 'ver-4', cor: 'Vermelho', texto: 'Toma decisões rápidas quando necessário' },
+    { id: 'azu-1', cor: 'Azul',     texto: 'É analítico e baseia decisões em dados' },
+    { id: 'azu-2', cor: 'Azul',     texto: 'Mantém a calma em situações de pressão' }
   ]);
 
   /** Associações por alvo (máx. 1 carta) */
@@ -474,7 +474,6 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
           <span style="display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:middle;margin-right:6px;background:${this.colorHex[card.cor]}"></span>
           ${this.escape(card.cor)}
         </p>
-        <p><b>Planeta:</b> 🪐 ${this.escape(card.planeta || 'N/A')}</p>
        </div>`;
 
     const confirm = await Swal.fire({
