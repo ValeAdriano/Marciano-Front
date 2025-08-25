@@ -135,6 +135,10 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
       
       // VERIFICAÇÃO CRÍTICA: Verificar se já votou nesta rodada
       this.checkLastVote();
+      
+      // CAMADA DE GARANTIA: Verificação periódica de status como fallback
+      console.log('🔒 Iniciando verificação periódica de status como fallback...');
+      this.startPeriodicStatusCheck();
     }
   }
 
@@ -180,11 +184,16 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
     this.subscriptions.push(
       this.api.socketEvents$.subscribe(event => {
         console.log('📡 Evento recebido via socket:', event);
+        console.log('🔍 Tipo do evento:', event.type);
+        console.log('🔍 Dados do evento:', JSON.stringify(event, null, 2));
         
         switch (event.type) {
           case 'room:status':
             console.log('🔄 Processando room:status:', event.status);
+            console.log('🔍 Status anterior (antes da atualização):', this._roomStatus()?.status);
+            console.log('🔍 Status novo recebido:', event.status.status);
             this._roomStatus.set(event.status);
+            console.log('🔍 Status atualizado no signal:', this._roomStatus()?.status);
             this.handleStatusChange(event.status);
             break;
           case 'room:finalized':
@@ -230,31 +239,43 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
     if (!code) return;
 
     try {
+      console.log('🔄 Carregando status da sala via API...');
       const result = await this.api.getRoomStatus(code);
       if (result.ok) {
+        console.log('✅ Status da sala carregado via API:', result.data);
+        console.log('🔍 Status anterior (antes da atualização):', this._roomStatus()?.status);
+        console.log('🔍 Status novo recebido:', result.data.status);
+        
         this._roomStatus.set(result.data);
+        console.log('🔍 Status atualizado no signal:', this._roomStatus()?.status);
         
         // Usar o NavigationService para verificar se está na tela correta
         if (!this.navigation.isOnCorrectScreen(result.data)) {
+          console.log('🧭 Navegando para tela correta...');
           // Se não estiver na tela correta, navegar para ela
           this.navigation.navigateToCorrectScreen(result.data);
         } else {
+          console.log('✅ Já está na tela correta');
           // Se estiver na tela correta, verificar lastvote
           this.checkLastVote();
         }
       } else {
-        console.warn('Erro ao carregar status da sala:', result.error);
+        console.warn('❌ Erro ao carregar status da sala:', result.error);
       }
     } catch (error) {
-      console.error('Erro ao carregar status da sala:', error);
+      console.error('💥 Erro ao carregar status da sala:', error);
     }
   }
 
   private handleStatusChange(status: RoomStatus): void {
     console.log('🔄 handleStatusChange chamado com status:', status);
+    console.log('🔍 Detalhes do status recebido:', JSON.stringify(status, null, 2));
+    
     const currentStatus = status.status;
+    console.log('📊 Status atual extraído:', currentStatus);
     
     // CORREÇÃO CRÍTICA: Fechar TODOS os modais de SweetAlert de forma mais robusta
+    console.log('🔒 Iniciando fechamento de SweetAlerts...');
     this.forceCloseAllSweetAlerts();
     
     // VERIFICAÇÃO CRÍTICA: Se o status for "finalizado", navegar direto para resultados
@@ -268,27 +289,63 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
     const code = this.roomCode();
     const previousStatus = this._roomStatus()?.status;
     console.log('📝 Status anterior:', previousStatus, 'Status atual:', currentStatus);
+    console.log('🔍 Código da sala:', code);
+    console.log('🔍 Signal _roomStatus atual:', this._roomStatus());
     
     if (code && previousStatus && previousStatus !== currentStatus) {
       console.log('🔄 Status mudou, limpando lastvote da rodada anterior');
+      console.log('🎯 Mudança detectada:', previousStatus, '->', currentStatus);
       
       // CORREÇÃO ESPECÍFICA: Se mudou de rodada_0 para rodada_1+, fechar SweetAlerts imediatamente
       if (previousStatus === 'rodada_0' && currentStatus.startsWith('rodada_') && currentStatus !== 'rodada_0') {
         console.log('🎯 Mudança de rodada_0 para nova rodada detectada - fechando SweetAlerts...');
+        console.log('🔒 Executando fechamento forçado...');
         this.forceCloseAllSweetAlerts();
         this.closeRoundZeroSweetAlerts();
+        
+        // CAMADA DE GARANTIA ADICIONAL: Fechamento múltiplo com delays
+        console.log('🔒 CAMADA DE GARANTIA: Fechamento adicional após 200ms...');
+        setTimeout(() => {
+          console.log('🔒 Executando fechamento adicional...');
+          this.forceCloseAllSweetAlerts();
+          this.closeRoundZeroSweetAlerts();
+        }, 200);
+        
+        console.log('🔒 CAMADA DE GARANTIA: Fechamento adicional após 500ms...');
+        setTimeout(() => {
+          console.log('🔒 Executando fechamento adicional...');
+          this.forceCloseAllSweetAlerts();
+          this.closeRoundZeroSweetAlerts();
+        }, 500);
+        
+        console.log('🔒 CAMADA DE GARANTIA: Fechamento adicional após 1000ms...');
+        setTimeout(() => {
+          console.log('🔒 Executando fechamento adicional...');
+          this.forceCloseAllSweetAlerts();
+          this.closeRoundZeroSweetAlerts();
+        }, 1000);
       }
       
       // Limpar lastvote da rodada anterior
       const lastVoteKey = `lastvote_${code}`;
       localStorage.removeItem(lastVoteKey);
+      console.log('🗑️ Lastvote removido:', lastVoteKey);
       
       // Também limpar no VoteStateService para compatibilidade
       this.voteState.clearVoteState(code, previousStatus);
+      console.log('🗑️ VoteState limpo para:', code, previousStatus);
+    } else {
+      console.log('⚠️ Condições não atendidas para limpeza:');
+      console.log('  - code existe:', !!code);
+      console.log('  - previousStatus existe:', !!previousStatus);
+      console.log('  - status diferente:', previousStatus !== currentStatus);
     }
     
     // Aguardar um pouco para garantir que o SweetAlert foi fechado
     setTimeout(() => {
+      console.log('🔒 Verificação final de SweetAlerts...');
+      this.forceCloseAllSweetAlerts();
+      
       // Usar o NavigationService para verificar se está na tela correta
       if (!this.navigation.isOnCorrectScreen(status)) {
         console.log('🧭 Navegando para tela correta...');
@@ -305,13 +362,18 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
    */
   private forceCloseAllSweetAlerts(): void {
     try {
+      console.log('🔒 Iniciando fechamento forçado de todos os SweetAlerts...');
+      
       // Método 1: Fechar via Swal.close() (método oficial)
+      console.log('🔒 Método 1: Executando Swal.close()...');
       Swal.close();
       
       // Método 2: Fechar via DOM (fallback para casos onde Swal.close() falha)
       const sweetAlertElements = document.querySelectorAll('.swal2-container');
-      sweetAlertElements.forEach(element => {
+      console.log(`🔍 Método 2: Encontrados ${sweetAlertElements.length} elementos de SweetAlert para fechar`);
+      sweetAlertElements.forEach((element, index) => {
         if (element instanceof HTMLElement) {
+          console.log(`🗑️ Fechando SweetAlert ${index + 1} via DOM`);
           element.style.display = 'none';
           element.remove();
         }
@@ -319,15 +381,33 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
       
       // Método 3: Fechar via backdrop (fallback para backdrops órfãos)
       const backdrops = document.querySelectorAll('.swal2-backdrop-show');
-      backdrops.forEach(backdrop => {
+      console.log(`🔍 Método 3: Encontrados ${backdrops.length} backdrops para fechar`);
+      backdrops.forEach((backdrop, index) => {
         if (backdrop instanceof HTMLElement) {
+          console.log(`🗑️ Fechando backdrop ${index + 1}`);
           backdrop.style.display = 'none';
           backdrop.remove();
         }
       });
       
       // Método 4: Remover classes de body (limpeza final)
+      console.log('🔒 Método 4: Removendo classes do body...');
       document.body.classList.remove('swal2-shown', 'swal2-height-auto');
+      
+      // Método 5: Verificação adicional após um delay
+      setTimeout(() => {
+        const remainingAlerts = document.querySelectorAll('.swal2-container, .swal2-backdrop-show');
+        if (remainingAlerts.length > 0) {
+          console.log(`🧹 Limpeza adicional: removendo ${remainingAlerts.length} elementos restantes`);
+          remainingAlerts.forEach(element => {
+            if (element instanceof HTMLElement) {
+              element.remove();
+            }
+          });
+        } else {
+          console.log('✅ Nenhum elemento restante encontrado');
+        }
+      }, 100);
       
       console.log('✅ Todos os SweetAlerts foram fechados com sucesso');
     } catch (error) {
@@ -354,7 +434,9 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
             if (title && (
               title.textContent?.includes('Aguardando') || 
               title.textContent?.includes('Próxima Rodada') ||
-              title.textContent?.includes('Autoavaliação registrada')
+              title.textContent?.includes('Autoavaliação registrada') ||
+              title.textContent?.includes('Você já enviou') ||
+              title.textContent?.includes('Carta já enviada')
             )) {
               console.log(`🗑️ Fechando SweetAlert da rodada_0: ${title.textContent}`);
               alert.remove();
@@ -364,7 +446,21 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
       }
       
       // Também fechar via Swal.close() para garantir
+      console.log('🔒 Executando Swal.close() adicional...');
       Swal.close();
+      
+      // Verificação adicional para elementos restantes
+      setTimeout(() => {
+        const remainingAlerts = document.querySelectorAll('.swal2-container');
+        if (remainingAlerts.length > 0) {
+          console.log(`🧹 Limpeza adicional: removendo ${remainingAlerts.length} elementos restantes`);
+          remainingAlerts.forEach(element => {
+            if (element instanceof HTMLElement) {
+              element.remove();
+            }
+          });
+        }
+      }, 50);
       
       console.log('✅ SweetAlerts da rodada_0 fechados com sucesso');
     } catch (error) {
@@ -729,6 +825,50 @@ export class RodadaZeroComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
 
+
+  /**
+   * Inicia verificação periódica do status da sala como fallback
+   * Útil para casos onde o socket não está funcionando
+   */
+  private startPeriodicStatusCheck(): void {
+    const code = this.roomCode();
+    if (!code) return;
+
+    console.log('🔒 Iniciando verificação periódica de status a cada 5 segundos...');
+    
+    // Verificar a cada 5 segundos
+    setInterval(async () => {
+      try {
+        console.log('🔄 Verificação periódica de status da sala...');
+        const result = await this.api.getRoomStatus(code);
+        
+        if (result.ok) {
+          const currentStatus = result.data.status;
+          const previousStatus = this._roomStatus()?.status;
+          
+          console.log('🔍 Verificação periódica - Status anterior:', previousStatus, 'Status atual:', currentStatus);
+          
+          // Se o status mudou para "finalizado", navegar para resultados
+          if (currentStatus === 'finalizado' && previousStatus !== 'finalizado') {
+            console.log('🏁 Status finalizado detectado via verificação periódica');
+            this.forceCloseAllSweetAlerts();
+            this.navigateToResults();
+            return;
+          }
+          
+          // Se o status mudou, atualizar e processar
+          if (previousStatus !== currentStatus) {
+            console.log('🔄 Status mudou via verificação periódica:', previousStatus, '->', currentStatus);
+            console.log('🔒 Executando handleStatusChange via verificação periódica...');
+            this._roomStatus.set(result.data);
+            this.handleStatusChange(result.data);
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Erro na verificação periódica de status:', error);
+      }
+    }, 5000); // A cada 5 segundos
+  }
 
   private navigateToResults(): void {
     const session = this.home.getSession();
