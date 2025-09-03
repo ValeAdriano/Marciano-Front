@@ -1,42 +1,51 @@
-<header class="sticky top-0 z-50 bg-gradient-to-b from-sky-50 to-white border-b border-sky-100/80">
-  <div class="max-w-6xl mx-auto px-4">
+<header class="sticky top-0 z-[9999] bg-gradient-to-b from-sky-50 to-white border-b border-sky-100/80 shadow-sm">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6">
     <div class="h-14 flex items-center justify-between">
       <!-- Branding -->
-      <a routerLink="/" class="flex items-center gap-2">
+      <a routerLink="/" class="flex items-center gap-2 flex-shrink-0">
         <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-sky-200 text-sky-700 font-semibold">QA</span>
-        <span class="font-semibold text-slate-800 tracking-tight">Qualidades Anímicas</span>
+        <span class="font-semibold text-slate-800 tracking-tight hidden sm:inline">Qualidades Anímicas</span>
       </a>
 
       <!-- Navegação Desktop -->
-      <nav class="hidden md:flex items-center gap-6 text-sm">
+      <nav class="hidden md:flex items-center gap-4 lg:gap-6 text-sm">
         <a routerLink="/lobby"
            routerLinkActive="text-sky-700"
-           class="text-slate-700 hover:text-sky-700 transition-colors duration-200">
+           class="text-slate-700 hover:text-sky-700 transition-colors duration-200 px-3 py-2 rounded-md hover:bg-sky-50">
           Entrar
         </a>
         
-        <!-- Botão Criar Sala - Só aparece se autenticado -->
-        <a *ngIf="isAuthenticated"
+        <!-- Botão Criar Sala - Só aparece se autenticado E com sessão completa -->
+        <a *ngIf="canCreateRoom()"
            routerLink="/criar-sala"
            routerLinkActive="text-sky-700"
-           class="inline-flex items-center rounded-md bg-sky-600 text-white px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-sky-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition-colors duration-200">
+           class="inline-flex items-center rounded-md bg-sky-600 text-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-sky-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 transition-all duration-200 transform hover:scale-105 active:scale-95 touch-manipulation cursor-pointer select-none">
           Criar sala
         </a>
         
         <!-- Botão Login - Só aparece se NÃO autenticado -->
         <button *ngIf="!isAuthenticated"
           (click)="showLogin()"
-          class="inline-flex items-center rounded-md bg-gray-600 text-white px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 transition-colors duration-200">
+          class="inline-flex items-center rounded-md bg-gray-600 text-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 transition-all duration-200 transform hover:scale-105 active:scale-95 touch-manipulation cursor-pointer select-none">
           🔐 Login
         </button>
+
+        <!-- Status de debug (só em desenvolvimento) -->
+        <div *ngIf="!canCreateRoom() && isAuthenticated" 
+             class="text-xs text-gray-500 px-2 py-1 bg-gray-100 rounded">
+          Sessão incompleta
+        </div>
       </nav>
 
       <!-- Botão Mobile Menu -->
       <button 
         (click)="toggleMenu()"
-        class="md:hidden inline-flex items-center justify-center p-2 rounded-md text-slate-700 hover:text-sky-700 hover:bg-sky-50 transition-colors duration-200"
+        (touchstart)="onTouchStart($event)"
+        (touchend)="onTouchEnd($event)"
+        class="md:hidden inline-flex items-center justify-center p-2 rounded-md text-slate-700 hover:text-sky-700 hover:bg-sky-50 transition-colors duration-200 touch-manipulation cursor-pointer select-none"
         [attr.aria-expanded]="isMenuOpen"
-        aria-label="Toggle menu">
+        aria-label="Toggle menu"
+        type="button">
         <svg 
           class="h-6 w-6" 
           [class.hidden]="isMenuOpen"
@@ -58,32 +67,41 @@
 
     <!-- Menu Mobile -->
     <div 
-      class="md:hidden"
-      [class.hidden]="!isMenuOpen"
-      (click)="closeMenu()">
-      <div class="px-2 pt-2 pb-3 space-y-1 bg-white border-t border-sky-100">
+      class="md:hidden overflow-hidden transition-all duration-300 ease-in-out"
+      [class.max-h-0]="!isMenuOpen"
+      [class.max-h-96]="isMenuOpen"
+      [class.opacity-0]="!isMenuOpen"
+      [class.opacity-100]="isMenuOpen">
+      <div class="px-2 pt-2 pb-3 space-y-1 bg-white border-t border-sky-100 shadow-lg">
         <a routerLink="/lobby"
            routerLinkActive="bg-sky-50 text-sky-700"
            (click)="onLinkClick()"
-           class="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-sky-700 hover:bg-sky-50 transition-colors duration-200">
+           class="block px-3 py-3 rounded-md text-base font-medium text-slate-700 hover:text-sky-700 hover:bg-sky-50 transition-colors duration-200 touch-manipulation cursor-pointer select-none">
           Entrar
         </a>
         
-        <!-- Botão Criar Sala Mobile - Só aparece se autenticado -->
-        <a *ngIf="isAuthenticated"
+        <!-- Botão Criar Sala Mobile - Só aparece se autenticado E com sessão completa -->
+        <a *ngIf="canCreateRoom()"
            routerLink="/criar-sala"
            routerLinkActive="bg-sky-50 text-sky-700"
            (click)="onLinkClick()"
-           class="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-sky-700 hover:bg-sky-50 transition-colors duration-200">
+           class="block px-3 py-3 rounded-md text-base font-medium text-slate-700 hover:text-sky-700 hover:bg-sky-50 transition-colors duration-200 touch-manipulation cursor-pointer select-none">
           Criar sala
         </a>
         
         <!-- Botão Login Mobile - Só aparece se NÃO autenticado -->
         <button *ngIf="!isAuthenticated"
           (click)="showLogin(); onLinkClick()"
-          class="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-sky-700 hover:bg-sky-50 transition-colors duration-200">
+          class="block w-full text-left px-3 py-3 rounded-md text-base font-medium text-slate-700 hover:text-sky-700 hover:bg-sky-50 transition-colors duration-200 touch-manipulation cursor-pointer select-none"
+          type="button">
           🔐 Login
         </button>
+
+        <!-- Status de debug mobile (só em desenvolvimento) -->
+        <div *ngIf="!canCreateRoom() && isAuthenticated" 
+             class="text-xs text-gray-500 px-3 py-2 bg-gray-100 rounded">
+          Sessão incompleta
+        </div>
       </div>
     </div>
   </div>

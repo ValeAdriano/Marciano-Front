@@ -1,6 +1,7 @@
 /* Estilos específicos do header */
 :host {
   display: block;
+  position: relative;
 }
 
 /* Animações suaves para o menu mobile */
@@ -45,4 +46,128 @@ a:hover {
 .border-sky-100\/80 {
   border-color: rgba(186, 230, 253, 0.8);
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+/* Melhorias para dispositivos touch */
+.touch-manipulation {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Correções para iOS Safari */
+@supports (-webkit-touch-callout: none) {
+  button, a {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+/* Melhorias para telas pequenas */
+@media (max-width: 480px) {
+  header {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+  
+  .h-14 {
+    height: 3.5rem;
+  }
+  
+  .px-4 {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+}
+
+/* Correções para dispositivos com tela de alta densidade */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .border-sky-100\/80 {
+    border-width: 0.5px;
+  }
+}
+
+/* Melhorias para navegadores que suportam prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Correções para Firefox */
+@-moz-document url-prefix() {
+  button, a {
+    -moz-user-select: none;
+  }
+}
+
+/* Melhorias para Edge */
+@supports (-ms-ime-align: auto) {
+  .bg-gradient-to-b {
+    background: #f0f9ff;
+  }
+}
+
+/* Correções específicas para problemas de clique */
+.cursor-pointer {
+  cursor: pointer !important;
+}
+
+/* Garantir que os botões sejam clicáveis */
+button, a[routerLink] {
+  position: relative;
+  z-index: 1;
+}
+
+/* Melhorar a área de clique em dispositivos móveis */
+@media (max-width: 768px) {
+  button, a[routerLink] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .px-3 {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  .py-3 {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+}
+
+/* Correções para dispositivos com viewport problemático */
+@media (max-width: 320px) {
+  .px-4 {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+  
+  .gap-2 {
+    gap: 0.25rem;
+  }
+}
+
+/* Garantir que o z-index funcione corretamente */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 9999;
+  will-change: transform;
+}
+
+/* Melhorias para dispositivos com scroll problemático */
+@media (max-height: 600px) {
+  .h-14 {
+    height: 3rem;
+  }
+  
+  .py-2 {
+    padding-top: 0.375rem;
+    padding-bottom: 0.375rem;
+  }
 }
